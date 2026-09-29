@@ -7,7 +7,7 @@
   - Files: repository root
   - AC: none (infrastructure)
   - Done when: `git init -b main`; everything currently in the folder committed as `chore: initial scaffold and spec workflow`; `.env*` (except `.env.example`, `.env.test.example`) not tracked.
-- [ ] **Task 2 — test tooling**
+- [x] **Task 2 — test tooling**
   - Files: `package.json`, `vitest.config.ts`, `playwright.config.ts`, `.env.test.example`, `.gitignore`, `supabase/tests/.gitkeep`, `tests/e2e/helpers/users.ts`
   - AC: none (infrastructure)
   - Done when: deps from design.md installed, `npx playwright install chromium` done, scripts `typecheck`, `test`, `test:db`, `test:e2e`, `check` exist, and each runner starts (it may report "no tests").
