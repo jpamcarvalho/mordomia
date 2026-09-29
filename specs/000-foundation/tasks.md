@@ -15,7 +15,7 @@
   - Files: `src/lib/validation/username.ts`, `src/lib/validation/username.test.ts`, `src/app/login/actions.ts`
   - AC: AC-2
   - Done when: `npm test` passes; signup uses the helper; behavior unchanged.
-- [ ] **Task 4 — pgTAP: profiles + entries RLS**
+- [x] **Task 4 — pgTAP: profiles + entries RLS**
   - Files: `supabase/tests/profiles.test.sql`, `supabase/tests/entries_rls.test.sql`
   - AC: AC-3, AC-6, AC-7, AC-8, AC-9
   - Done when: `npm run test:db` passes.
