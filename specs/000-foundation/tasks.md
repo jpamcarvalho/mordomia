@@ -27,7 +27,7 @@
   - Files: `tests/e2e/auth.spec.ts`, `tests/e2e/places.spec.ts`, `tests/e2e/pwa.spec.ts`
   - AC: AC-1, AC-2, AC-4, AC-5, AC-12, AC-13, AC-14
   - Done when: `npm run test:e2e` passes.
-- [ ] **Task 7 — full check**
+- [x] **Task 7 — full check**
   - Files: none new
   - AC: all
   - Done when: `npm run check` passes end to end.
