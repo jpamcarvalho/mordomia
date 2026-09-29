@@ -19,7 +19,7 @@
   - Files: `supabase/tests/profiles.test.sql`, `supabase/tests/entries_rls.test.sql`
   - AC: AC-3, AC-6, AC-7, AC-8, AC-9
   - Done when: `npm run test:db` passes.
-- [ ] **Task 5 — pgTAP: friendships + photos RLS**
+- [x] **Task 5 — pgTAP: friendships + photos RLS**
   - Files: `supabase/tests/friendships_rls.test.sql`, `supabase/tests/photos_rls.test.sql`
   - AC: AC-10, AC-11
   - Done when: `npm run test:db` passes.
