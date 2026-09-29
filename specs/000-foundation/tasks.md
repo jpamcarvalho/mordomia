@@ -23,7 +23,7 @@
   - Files: `supabase/tests/friendships_rls.test.sql`, `supabase/tests/photos_rls.test.sql`
   - AC: AC-10, AC-11
   - Done when: `npm run test:db` passes.
-- [ ] **Task 6 — Playwright: auth, places, PWA**
+- [x] **Task 6 — Playwright: auth, places, PWA**
   - Files: `tests/e2e/auth.spec.ts`, `tests/e2e/places.spec.ts`, `tests/e2e/pwa.spec.ts`
   - AC: AC-1, AC-2, AC-4, AC-5, AC-12, AC-13, AC-14
   - Done when: `npm run test:e2e` passes.
