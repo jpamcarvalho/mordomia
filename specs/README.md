@@ -7,4 +7,4 @@ Status: `draft` → `specced` → `implementing` → `review` → `done`
 
 | ID | Feature | Status | Notes |
 |---|---|---|---|
-| [000](000-foundation/) | Foundation: scaffold, auth, schema, RLS, Places proxy, test tooling | implementing | code exists; tasks = test tooling + foundation tests (needs Docker + git) |
+| [000](000-foundation/) | Foundation: scaffold, auth, schema, RLS, Places proxy, test tooling | review | all 7 tasks committed; `npm run check` green |

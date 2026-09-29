@@ -15,6 +15,9 @@ Every feature goes through three phases, each started by a command and ending wi
 | Build | `/implement NNN-slug` | `implementer` agent | code + tests, one commit per task |
 | Review | `/review NNN-slug` | `reviewer` agent → `architect` agent | review verdict, `specs/NNN-slug/README.md`, updated `docs/architecture.md` |
 
+Shortcut: `/build NNN-slug` orchestrates Build → Review → docs in one run (fix loop: the user picks which findings to
+fix, max 3 review rounds). `/implement` and `/review` remain for running a single phase.
+
 Feature status lives in `specs/README.md` (`draft` → `specced` → `implementing` → `review` → `done`).
 Templates live in `specs/_templates/`.
 
