@@ -57,3 +57,7 @@ Adding restaurants, lists, map, friends UI, photos UI, profile editing, password
 | 11 | Testing | Vitest + Playwright + RLS tests on local Supabase (Docker Desktop) | 2026-09-29 |
 | 12 | Git | Commit per task directly to main | 2026-09-29 |
 | 13 | Language | English everywhere | 2026-09-29 |
+| 14 | Review found RLS holes (addressee can rewrite `requester_id` on accept; `entry_photos.storage_path` not bound to `{auth.uid()}/{entry_id}/`) but the design freezes the migration. Fix in 000 or separately? | Close 000 with known gaps; fix in a separate security-hardening feature 001 | 2026-09-29 |
+| 15 | Should the friendship graph be private (`are_friends()` callable by anon for any pair)? | Private: only checks involving the caller; fix in 001 | 2026-09-29 |
+| 16 | Minor review findings (server-side password ≥ 8, AC-1 test on a non-root path, proxy `icon` matcher prefix, `.claude/settings.local.json` tracked) | All go into 001 | 2026-09-29 |
+| 17 | Public-path prefix match in `src/lib/supabase/proxy.ts:41` (`/authors` would be public) — found by architect in Mode B | Add to 001: match `/login`, `/auth` and `/auth/*` exactly | 2026-09-29 |
