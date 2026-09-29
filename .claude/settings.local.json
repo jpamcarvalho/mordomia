@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/joao/.claude/**)",
+      "Bash(claude --version)"
+    ]
+  }
+}
