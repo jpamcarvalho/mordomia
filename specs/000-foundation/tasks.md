@@ -11,7 +11,7 @@
   - Files: `package.json`, `vitest.config.ts`, `playwright.config.ts`, `.env.test.example`, `.gitignore`, `supabase/tests/.gitkeep`, `tests/e2e/helpers/users.ts`
   - AC: none (infrastructure)
   - Done when: deps from design.md installed, `npx playwright install chromium` done, scripts `typecheck`, `test`, `test:db`, `test:e2e`, `check` exist, and each runner starts (it may report "no tests").
-- [ ] **Task 3 — username validation + unit tests**
+- [x] **Task 3 — username validation + unit tests**
   - Files: `src/lib/validation/username.ts`, `src/lib/validation/username.test.ts`, `src/app/login/actions.ts`
   - AC: AC-2
   - Done when: `npm test` passes; signup uses the helper; behavior unchanged.

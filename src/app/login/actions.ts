@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUsername, normalizeUsername } from "@/lib/validation/username";
 
 export type AuthState = { error?: string; message?: string };
 
@@ -17,8 +18,8 @@ export async function login(_: AuthState, formData: FormData): Promise<AuthState
 }
 
 export async function signup(_: AuthState, formData: FormData): Promise<AuthState> {
-  const username = String(formData.get("username")).trim().toLowerCase();
-  if (!/^[a-z0-9_]{3,24}$/.test(username)) {
+  const username = normalizeUsername(String(formData.get("username")));
+  if (!isValidUsername(username)) {
     return { error: "Username must be 3–24 characters: letters, numbers or _." };
   }
 
