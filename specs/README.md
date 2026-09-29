@@ -8,4 +8,4 @@ Status: `draft` → `specced` → `implementing` → `review` → `done`
 | ID | Feature | Status | Notes |
 |---|---|---|---|
 | [000](000-foundation/) | Foundation: scaffold, auth, schema, RLS, Places proxy, test tooling | done | closed with known RLS gaps (see README), fixed in 001 |
-| 001 | Security hardening: RLS fixes from 000 review (friendship forge, photo path binding, private friend graph) + minor findings + proxy path matching | draft | not specced yet; see 000 README "Known gaps" and 000 Decisions log #14–17 — run `/spec` |
+| [001](001-security-hardening/) | Security hardening: RLS fixes from 000 review (friendship forge, photo path binding, private friend graph) + minor findings + proxy path matching | specced | design + 9 tasks approved 2026-09-29 |
