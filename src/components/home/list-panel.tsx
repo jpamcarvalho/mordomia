@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LIST_LABELS, LIST_STATUSES, type ListItem, type ListStatus } from "@/lib/list/types";
 import { searchList } from "@/lib/list/search";
-import { filterByKinds, kindCounts } from "@/lib/list/filter";
+import { filterByKinds, filterByRating, kindCounts, ratingOptions, sameRatingFilter, type RatingFilter } from "@/lib/list/filter";
 import { kindEmoji, kindLabel, kindsLabel, placeKinds, type FoodClass } from "@/lib/map/restaurants";
 import { CutleryIcon } from "./list-fab";
 import { MagnifierIcon } from "./search-modal";
@@ -31,17 +31,46 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
   const [query, setQuery] = useState("");
   // Type filter (any of these); kept when switching tabs.
   const [kinds, setKinds] = useState<FoodClass[]>([]);
+  // Rating filter; only on "Adiciona à minha lista" (the other list has no ratings) and while searching.
+  const [rating, setRating] = useState<RatingFilter | null>(null);
+  // The filter dropdown that is open.
+  const [sheet, setSheet] = useState<"kind" | "rating" | null>(null);
+  const laneRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!sheet) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!laneRef.current?.contains(event.target as Node)) setSheet(null);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [sheet]);
+
+  function pickRating(value: RatingFilter | null) {
+    setRating(value);
+    setSheet(null);
+  }
   // Searching looks through both lists; otherwise the current tab.
   const searching = query.trim() !== "";
   const base = searching ? searchList(items, query) : items.filter((item) => item.status === tab);
-  const shown = filterByKinds(base, kinds);
-  const filtering = kinds.length > 0;
-  // Chips for the types on screen, plus any chosen type that has nothing here right now.
-  const counts = kindCounts(base);
-  const chips = [
-    ...counts,
-    ...kinds.filter((kind) => !counts.some((c) => c.kind === kind)).map((kind) => ({ kind, count: 0 })),
-  ];
+  // Both filters only offer (and only apply) what the restaurants on screen have.
+  const chips = kindCounts(base);
+  const activeKinds = kinds.filter((kind) => chips.some((chip) => chip.kind === kind));
+  const byKind = filterByKinds(base, activeKinds);
+  // "Quero ir!" places have no rating: no rating filter on that tab.
+  const ratingChips = searching || tab === "saved" ? ratingOptions(byKind) : [];
+  const activeRating = ratingChips.some((option) => sameRatingFilter(option.filter, rating)) ? rating : null;
+  const shown = filterByRating(byKind, activeRating);
+  const filtering = activeKinds.length > 0 || activeRating !== null;
+  const showKindFilter = chips.length > 1;
+  // Worth offering once at least one place here has a rating.
+  const showRatingRow = ratingChips.some((option) => option.filter !== "unrated");
+
+  function clearFilters() {
+    setSheet(null);
+    setKinds([]);
+    setRating(null);
+  }
 
   function toggleKind(kind: FoodClass) {
     setKinds((current) => (current.includes(kind) ? current.filter((k) => k !== kind) : [...current, kind]));
@@ -50,14 +79,15 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
-      // Escape clears the search, then the type filter, then closes the page.
-      if (query) setQuery("");
-      else if (filtering) setKinds([]);
+      // Escape closes a filter dropdown, then clears the search, then the filters, then closes the page.
+      if (sheet) setSheet(null);
+      else if (query) setQuery("");
+      else if (filtering) clearFilters();
       else onClose();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onClose, query, filtering]);
+  }, [onClose, query, filtering, sheet]);
 
   return (
     <section
@@ -142,40 +172,71 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
           )}
         </div>
 
-        {(chips.length > 1 || filtering) && (
-          <div
-            role="group"
-            aria-label="Filtrar por tipo"
-            className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]"
-          >
-            <button
-              type="button"
-              aria-pressed={!filtering}
-              onClick={() => setKinds([])}
-              className={`flex h-9 shrink-0 items-center rounded-full px-4 text-sm font-semibold transition active:scale-95 ${
-                filtering ? "bg-neutral-100 text-neutral-600" : "bg-foreground text-white"
-              }`}
-            >
-              Todos
-            </button>
-            {chips.map(({ kind, count }) => {
-              const active = kinds.includes(kind);
-              return (
-                <button
-                  key={kind}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => toggleKind(kind)}
-                  className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition active:scale-95 ${
-                    active ? "bg-accent text-white shadow" : "bg-neutral-100 text-neutral-700"
-                  }`}
-                >
-                  <span aria-hidden="true">{kindEmoji(kind)}</span>
-                  {kindLabel(kind)}
-                  <span className={`text-xs ${active ? "text-white/80" : "text-neutral-400"}`}>{count}</span>
-                </button>
-              );
-            })}
+        {(showKindFilter || showRatingRow) && (
+          <div ref={laneRef} role="group" aria-label="Filtros" className="relative mt-3 flex items-center gap-2">
+            {showKindFilter && (
+              <FilterButton
+                icon="🍽️"
+                label="Tipo"
+                summary={
+                  activeKinds.length === 0
+                    ? null
+                    : activeKinds.length === 1
+                      ? kindLabel(activeKinds[0])
+                      : `${kindLabel(activeKinds[0])} +${activeKinds.length - 1}`
+                }
+                open={sheet === "kind"}
+                onClick={() => setSheet((open) => (open === "kind" ? null : "kind"))}
+              />
+            )}
+            {showRatingRow && (
+              <FilterButton
+                icon="⭐"
+                label="Nota"
+                summary={ratingChips.find((option) => sameRatingFilter(option.filter, activeRating))?.label ?? null}
+                open={sheet === "rating"}
+                onClick={() => setSheet((open) => (open === "rating" ? null : "rating"))}
+              />
+            )}
+            {filtering && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="ml-auto shrink-0 rounded-full px-3 py-2 text-sm font-medium text-accent hover:bg-orange-50"
+              >
+                Limpar
+              </button>
+            )}
+            {sheet === "kind" && (
+              <FilterDropdown label="Tipo de sítio">
+                <OptionRow type="checkbox" active={activeKinds.length === 0} onClick={() => setKinds([])}>
+                  Todos
+                </OptionRow>
+                {chips.map(({ kind, count }) => (
+                  <OptionRow key={kind} type="checkbox" active={activeKinds.includes(kind)} count={count} onClick={() => toggleKind(kind)}>
+                    <span aria-hidden="true">{kindEmoji(kind)}</span> {kindLabel(kind)}
+                  </OptionRow>
+                ))}
+              </FilterDropdown>
+            )}
+            {sheet === "rating" && (
+              <FilterDropdown label="Nota">
+                <OptionRow type="radio" active={activeRating === null} onClick={() => pickRating(null)}>
+                  Todas as notas
+                </OptionRow>
+                {ratingChips.map(({ filter, label, count }) => (
+                  <OptionRow
+                    key={label}
+                    type="radio"
+                    active={sameRatingFilter(activeRating, filter)}
+                    count={count}
+                    onClick={() => pickRating(filter)}
+                  >
+                    {filter !== "unrated" && <span aria-hidden="true">⭐</span>} {label}
+                  </OptionRow>
+                ))}
+              </FilterDropdown>
+            )}
           </div>
         )}
       </header>
@@ -198,14 +259,14 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
         ) : shown.length === 0 && filtering && base.length > 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
             <span aria-hidden="true" className="flex size-20 items-center justify-center rounded-full bg-accent/10 text-4xl">
-              {kindEmoji(kinds[0])}
+              {activeKinds.length ? kindEmoji(activeKinds[0]) : "⭐"}
             </span>
             <p className="max-w-72 text-lg font-semibold">
-              Nenhum sítio deste tipo {searching ? "na pesquisa" : "nesta lista"}
+              Nenhum sítio com estes filtros {searching ? "na pesquisa" : "nesta lista"}
             </p>
             <button
               type="button"
-              onClick={() => setKinds([])}
+              onClick={clearFilters}
               className="mt-2 h-11 rounded-full bg-accent px-6 text-sm font-semibold text-white shadow"
             >
               Ver todos
@@ -288,5 +349,98 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
         )}
       </div>
     </section>
+  );
+}
+
+// A filter in the lane: shows the chosen value, opens its dropdown.
+function FilterButton({
+  icon,
+  label,
+  summary,
+  open,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  summary: string | null;
+  open: boolean;
+  onClick: () => void;
+}) {
+  const active = summary !== null;
+  return (
+    <button
+      type="button"
+      aria-haspopup="menu"
+      aria-expanded={open}
+      onClick={onClick}
+      className={`flex h-10 min-w-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold transition active:scale-95 ${
+        active ? "bg-accent text-white shadow" : "bg-neutral-100 text-neutral-700"
+      } ${open ? "ring-2 ring-accent/40" : ""}`}
+    >
+      <span aria-hidden="true">{icon}</span>
+      <span className="truncate">{active ? summary : label}</span>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={`size-4 shrink-0 opacity-70 transition ${open ? "rotate-180" : ""}`}
+      >
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    </button>
+  );
+}
+
+// Dropdown under the filter lane; changes apply right away.
+function FilterDropdown({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div
+      role="menu"
+      aria-label={label}
+      className="absolute inset-x-0 top-full z-10 mt-2 max-h-80 overflow-y-auto rounded-2xl bg-white py-2 shadow-xl ring-1 ring-black/5 motion-safe:animate-[fade-in_120ms_ease-out]"
+    >
+      {children}
+    </div>
+  );
+}
+
+function OptionRow({
+  type,
+  active,
+  count,
+  onClick,
+  children,
+}: {
+  type: "checkbox" | "radio";
+  active: boolean;
+  count?: number;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role={type === "checkbox" ? "menuitemcheckbox" : "menuitemradio"}
+      aria-checked={active}
+      onClick={onClick}
+      className={`flex w-full items-center gap-3 px-4 py-3 text-left text-base transition hover:bg-neutral-50 ${
+        active ? "font-semibold text-accent" : "text-neutral-800"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`flex size-5 shrink-0 items-center justify-center border-2 text-xs text-white ${
+          type === "checkbox" ? "rounded-md" : "rounded-full"
+        } ${active ? "border-accent bg-accent" : "border-neutral-300"}`}
+      >
+        {active && "✓"}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      {count !== undefined && <span className="text-sm text-neutral-400 tabular-nums">{count}</span>}
+    </button>
   );
 }
