@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { LIST_LABELS, LIST_STATUSES, type ListItem, type ListStatus } from "@/lib/list/types";
+import { searchList } from "@/lib/list/search";
 import { kindEmoji, kindLabel } from "@/lib/map/restaurants";
 import { CutleryIcon } from "./list-fab";
+import { MagnifierIcon } from "./search-modal";
 
 // The popup button that puts a place on each list (PlaceDialog).
 const ADD_BUTTON_LABELS: Record<ListStatus, string> = {
@@ -25,15 +27,21 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
   const [tab, setTab] = useState<ListStatus>(
     () => LIST_STATUSES.find((status) => items.some((item) => item.status === status)) ?? "saved",
   );
-  const shown = items.filter((item) => item.status === tab);
+  const [query, setQuery] = useState("");
+  // Searching looks through both lists; otherwise the current tab.
+  const searching = query.trim() !== "";
+  const shown = searching ? searchList(items, query) : items.filter((item) => item.status === tab);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      // First Escape clears the search, the next one closes the page.
+      if (query) setQuery("");
+      else onClose();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
+  }, [onClose, query]);
 
   return (
     <section
@@ -65,14 +73,17 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
         <div role="tablist" className="mt-4 grid grid-cols-2 gap-1 rounded-full bg-neutral-100 p-1">
           {LIST_STATUSES.map((status) => {
             const count = items.filter((item) => item.status === status).length;
-            const active = tab === status;
+            const active = !searching && tab === status;
             return (
               <button
                 key={status}
                 role="tab"
                 type="button"
                 aria-selected={active}
-                onClick={() => setTab(status)}
+                onClick={() => {
+                  setTab(status);
+                  setQuery("");
+                }}
                 className={`flex h-10 items-center justify-center gap-2 rounded-full text-sm font-semibold transition ${
                   active ? "bg-accent text-white shadow" : "text-neutral-600"
                 }`}
@@ -89,10 +100,49 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
             );
           })}
         </div>
+
+        <div className="mt-3 flex h-11 items-center gap-2 rounded-full bg-neutral-100 px-4 focus-within:ring-2 focus-within:ring-accent/40">
+          <MagnifierIcon className="size-5 shrink-0 text-neutral-500" />
+          <input
+            type="text"
+            inputMode="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            aria-label="Search my list"
+            placeholder="Search my list"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="h-full min-w-0 flex-1 bg-transparent text-base outline-none"
+          />
+          {query && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => setQuery("")}
+              className="-mr-1 flex size-7 items-center justify-center rounded-full leading-none text-neutral-500 hover:bg-neutral-200"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
-        {shown.length === 0 ? (
+        {shown.length === 0 && searching ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+            <span className="flex size-20 items-center justify-center rounded-full bg-accent/10 text-accent">
+              <CutleryIcon className="size-10" />
+            </span>
+            <p className="max-w-72 text-lg font-semibold">Não tens esse restaurante na lista, vai petiscar outro</p>
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="mt-2 h-11 rounded-full bg-accent px-6 text-sm font-semibold text-white shadow"
+            >
+              Clear search
+            </button>
+          </div>
+        ) : shown.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
             <span className="flex size-20 items-center justify-center rounded-full bg-accent/10 text-accent">
               <CutleryIcon className="size-10" />
@@ -110,7 +160,7 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
             </button>
           </div>
         ) : (
-          <ul role="tabpanel" className="flex flex-col gap-3">
+          <ul role={searching ? undefined : "tabpanel"} aria-label={searching ? "Search results" : undefined} className="flex flex-col gap-3">
             {shown.map((item) => (
               <li
                 key={item.entryId}
@@ -138,6 +188,12 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
                     </span>
                     <span className="mt-0.5 flex items-center gap-1 text-sm text-neutral-500">
                       {item.kind ? kindLabel(item.kind) : "Restaurant"}
+                      {searching && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="font-medium text-neutral-700">{LIST_LABELS[item.status]}</span>
+                        </>
+                      )}
                       <span aria-hidden="true">·</span>
                       <span className="text-accent">See on map</span>
                     </span>
