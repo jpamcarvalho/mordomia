@@ -54,3 +54,17 @@ export function toSelectedPlace(
     lng: lngLat.lng,
   };
 }
+
+const KIND_EMOJI: Record<FoodClass, string> = {
+  restaurant: "🍽️",
+  fast_food: "🍔",
+  cafe: "☕",
+  bar: "🍸",
+  beer: "🍺",
+  ice_cream: "🍦",
+  bakery: "🥐",
+};
+
+export function kindEmoji(kind: FoodClass | null): string {
+  return kind ? KIND_EMOJI[kind] : KIND_EMOJI.restaurant;
+}

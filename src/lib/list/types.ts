@@ -24,4 +24,7 @@ export type ListItem = {
   kind: FoodClass | null;
   lat: number;
   lng: number;
+  // 0–10, only on "saved".
+  rating: number | null;
+  notes: string | null;
 };

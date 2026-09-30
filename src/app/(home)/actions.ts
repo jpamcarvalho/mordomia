@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { parseDetails } from "@/lib/list/details";
 import { isListStatus, type ListItem, type ListStatus } from "@/lib/list/types";
 import { isFoodClass, type SelectedPlace } from "@/lib/map/restaurants";
 
@@ -26,11 +27,19 @@ async function restaurantIdFor(supabase: Awaited<ReturnType<typeof createClient>
   return null;
 }
 
-// Puts the place on one of the user's private lists. Already on a list → moves it to this one.
-export async function addToList(place: SelectedPlace, status: ListStatus): Promise<AddResult> {
+// Puts the place on one of the user's private lists. Already on a list → moves it / updates it.
+// "saved" carries a rating (0–10, optional) and notes; "want" has no rating (notes are kept).
+export async function addToList(
+  place: SelectedPlace,
+  status: ListStatus,
+  input?: { rating?: number | null; notes?: string | null },
+): Promise<AddResult> {
   if (!place?.id || !place.name || !isFoodClass(place.kind) || !isListStatus(status)) {
     return { ok: false, error: "Invalid place." };
   }
+  const details = parseDetails(input);
+  if (!details) return { ok: false, error: "Rating must be a whole number from 0 to 10." };
+  const fields = status === "saved" ? { status, rating: details.rating, notes: details.notes } : { status, rating: null };
 
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
@@ -41,26 +50,37 @@ export async function addToList(place: SelectedPlace, status: ListStatus): Promi
 
   const inserted = await supabase
     .from("entries")
-    .insert({ restaurant_id: restaurantId, status })
-    .select("id")
+    .insert({ restaurant_id: restaurantId, ...fields })
+    .select("id, rating, notes")
     .single();
 
-  let entryId = inserted.data?.id as string | undefined;
-  if (!entryId && inserted.error?.code === UNIQUE_VIOLATION) {
+  type Saved = { id: string; rating: number | null; notes: string | null };
+  let saved = inserted.data as Saved | null;
+  if (!saved && inserted.error?.code === UNIQUE_VIOLATION) {
     const moved = await supabase
       .from("entries")
-      .update({ status })
+      .update(fields)
       .eq("user_id", claims.claims.sub)
       .eq("restaurant_id", restaurantId)
-      .select("id")
+      .select("id, rating, notes")
       .single();
-    entryId = moved.data?.id as string | undefined;
+    saved = moved.data as Saved | null;
   }
-  if (!entryId) return { ok: false, error: "Couldn't add it to your list." };
+  if (!saved) return { ok: false, error: "Couldn't add it to your list." };
 
   return {
     ok: true,
-    item: { entryId, status, placeId: place.id, name: place.name, kind: place.kind, lat: place.lat, lng: place.lng },
+    item: {
+      entryId: saved.id,
+      status,
+      placeId: place.id,
+      name: place.name,
+      kind: place.kind,
+      lat: place.lat,
+      lng: place.lng,
+      rating: saved.rating,
+      notes: saved.notes,
+    },
   };
 }
 

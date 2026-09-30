@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode, type Ref } from "react";
 import { MagnifierIcon } from "./search-modal";
 
 type Props = {
@@ -11,13 +11,44 @@ type Props = {
   onAdd: () => void;
   onShowList: () => void;
   onSearch: () => void;
+  // The round button itself (target of the "added" animation).
+  buttonRef?: Ref<HTMLButtonElement>;
 };
 
-const pill =
-  "flex h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-medium text-foreground shadow-lg disabled:opacity-60";
+type ItemProps = {
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  // Stagger: the item nearest the button pops first.
+  delayMs: number;
+  badge?: number;
+};
+
+// One fork menu option. All options share the same size.
+function MenuItem({ icon, label, onClick, delayMs, badge }: ItemProps) {
+  return (
+    <button
+      role="menuitem"
+      type="button"
+      onClick={onClick}
+      style={{ animationDelay: `${delayMs}ms` }}
+      className="flex h-14 w-48 items-center gap-3 rounded-2xl bg-white pr-4 pl-2.5 text-left text-[15px] font-semibold text-foreground shadow-lg ring-1 ring-black/5 transition-transform active:scale-95 motion-safe:animate-[fork-pop_200ms_cubic-bezier(0.2,0.9,0.3,1.2)_both]"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+        {icon}
+      </span>
+      <span className="flex-1">{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className="min-w-6 rounded-full bg-accent px-1.5 py-0.5 text-center text-xs font-bold text-white">
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+}
 
 // The fork menu: round knife-and-fork button (bottom-right). Tapping it pops Search, My list and Add up above it.
-export function ListFab({ open, onToggle, onClose, count, onAdd, onShowList, onSearch }: Props) {
+export function ListFab({ open, onToggle, onClose, count, onAdd, onShowList, onSearch, buttonRef }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,40 +70,39 @@ export function ListFab({ open, onToggle, onClose, count, onAdd, onShowList, onS
   return (
     <div ref={rootRef} className="flex flex-col items-end gap-3">
       {open && (
-        <div role="menu" aria-label="List" className="flex flex-col items-end gap-3">
-          <button role="menuitem" type="button" className={pill} onClick={onSearch}>
-            <MagnifierIcon className="size-5" />
-            Search
-          </button>
-          <button role="menuitem" type="button" className={pill} onClick={onShowList}>
-            <ListIcon />
-            My list
-            {count > 0 && (
-              <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-white">{count}</span>
-            )}
-          </button>
-          <button role="menuitem" type="button" className={pill} onClick={onAdd}>
-            <PlusIcon />
-            Add
-          </button>
-        </div>
+        <>
+          {/* Dims the map so the options stand out; tapping it closes the menu. */}
+          <div
+            aria-hidden="true"
+            onClick={onClose}
+            className="fixed inset-0 -z-10 bg-black/25 motion-safe:animate-[fade-in_150ms_ease-out]"
+          />
+          <div role="menu" aria-label="List" className="flex flex-col items-end gap-2.5">
+            <MenuItem icon={<MagnifierIcon className="size-5" />} label="Search" onClick={onSearch} delayMs={80} />
+            <MenuItem icon={<ListIcon />} label="My list" onClick={onShowList} delayMs={40} badge={count} />
+            <MenuItem icon={<PlusIcon />} label="Add" onClick={onAdd} delayMs={0} />
+          </div>
+        </>
       )}
       <button
         type="button"
         aria-label={open ? "Close list menu" : "Open list menu"}
         aria-haspopup="menu"
         aria-expanded={open}
+        ref={buttonRef}
         onClick={onToggle}
-        className="flex size-14 items-center justify-center rounded-full bg-accent text-white shadow-lg"
+        className={`flex size-14 items-center justify-center rounded-full bg-accent text-white shadow-lg transition ${
+          open ? "ring-4 ring-white" : ""
+        }`}
       >
-        <CutleryIcon className="size-7" />
+        <CutleryIcon className={`size-7 transition-transform duration-200 ${open ? "-rotate-12" : ""}`} />
       </button>
     </div>
   );
 }
 
 // public/icons/cutlery.png, used as a mask so it takes the text color.
-function CutleryIcon({ className }: { className: string }) {
+export function CutleryIcon({ className }: { className: string }) {
   return (
     <span
       aria-hidden="true"

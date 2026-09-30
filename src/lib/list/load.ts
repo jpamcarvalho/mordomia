@@ -5,6 +5,8 @@ import { LIST_STATUSES, isListStatus, type ListItem } from "./types";
 type Row = {
   id: string;
   status: string;
+  rating: number | null;
+  notes: string | null;
   restaurants: { osm_id: string | null; name: string; kind: string | null; lat: number | null; lng: number | null } | null;
 };
 
@@ -15,12 +17,12 @@ export async function loadList(
 ): Promise<ListItem[]> {
   const { data } = await supabase
     .from("entries")
-    .select("id, status, restaurants(osm_id, name, kind, lat, lng)")
+    .select("id, status, rating, notes, restaurants(osm_id, name, kind, lat, lng)")
     .eq("user_id", userId)
     .in("status", [...LIST_STATUSES])
     .order("updated_at", { ascending: false });
 
-  return ((data ?? []) as unknown as Row[]).flatMap(({ id, status, restaurants: r }) =>
+  return ((data ?? []) as unknown as Row[]).flatMap(({ id, status, rating, notes, restaurants: r }) =>
     r?.osm_id && r.lat != null && r.lng != null && isListStatus(status)
       ? [
           {
@@ -31,6 +33,8 @@ export async function loadList(
             kind: isFoodClass(r.kind) ? r.kind : null,
             lat: r.lat,
             lng: r.lng,
+            rating,
+            notes,
           },
         ]
       : [],

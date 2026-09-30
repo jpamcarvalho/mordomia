@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { addToList, removeFromList } from "@/app/(home)/actions";
 import { Splash } from "@/components/splash";
+import type { EntryDetails } from "@/lib/list/details";
 import type { ListItem, ListStatus } from "@/lib/list/types";
 import {
   requestLocation,
@@ -15,6 +16,7 @@ import {
 import { homePhase, type MapStatus } from "@/lib/map/phase";
 import type { SelectedPlace } from "@/lib/map/restaurants";
 import { AvatarMenu } from "./avatar-menu";
+import { FlyingCutlery } from "./flying-cutlery";
 import { ListFab } from "./list-fab";
 import { ListPanel } from "./list-panel";
 import { LocationNotice } from "./location-notice";
@@ -46,6 +48,9 @@ export function HomeMap({ username, initialList }: Props) {
   const [adding, startAdding] = useTransition();
   const [pendingStatus, setPendingStatus] = useState<ListStatus | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // "Added" animation: a knife and fork flies from this point into the fork menu.
+  const [flight, setFlight] = useState<{ x: number; y: number } | null>(null);
+  const fabRef = useRef<HTMLButtonElement>(null);
   const requested = useRef(false);
   // Latest location for async callbacks (late reading, recenter) that outlive the render they started in.
   const locationRef = useRef<LocationState | null>(null);
@@ -105,19 +110,19 @@ export function HomeMap({ username, initialList }: Props) {
 
   const closeFab = useCallback(() => setFabOpen(false), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
-  const selectedStatus = selected ? (list.find((item) => item.placeId === selected.id)?.status ?? null) : null;
+  const selectedItem = selected ? (list.find((item) => item.placeId === selected.id) ?? null) : null;
 
   function add() {
     setFabOpen(false);
     setToast("Tap a restaurant on the map to add it");
   }
 
-  function choose(status: ListStatus) {
+  function choose(status: ListStatus, details: EntryDetails | undefined, origin: DOMRect) {
     if (!selected || adding) return;
     const place = selected;
     setPendingStatus(status);
     startAdding(async () => {
-      const result = await addToList(place, status);
+      const result = await addToList(place, status, details);
       setPendingStatus(null);
       if (!result.ok) {
         setToast(result.error);
@@ -126,6 +131,9 @@ export function HomeMap({ username, initialList }: Props) {
       setList((items) => [result.item, ...items.filter((item) => item.entryId !== result.item.entryId)]);
       setToast(status === "want" ? `${place.name}: Quero ir!` : `${place.name} adicionado à minha lista`);
       setSelected(null);
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setFlight({ x: origin.left + origin.width / 2, y: origin.top + origin.height / 2 });
+      }
     });
   }
 
@@ -164,7 +172,8 @@ export function HomeMap({ username, initialList }: Props) {
       {phase === "map" && selected && (
         <PlaceDialog
           place={selected}
-          current={selectedStatus}
+          key={selected.id}
+          current={selectedItem}
           pending={pendingStatus}
           onChoose={choose}
           onClose={() => setSelected(null)}
@@ -174,13 +183,14 @@ export function HomeMap({ username, initialList }: Props) {
         <div
           className="absolute right-[calc(env(safe-area-inset-right)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] z-20 flex flex-col items-end gap-3"
         >
-          <RecenterButton busy={recentering} onClick={recenter} />
+          {!fabOpen && <RecenterButton busy={recentering} onClick={recenter} />}
           <ListFab
             open={fabOpen}
             onToggle={() => setFabOpen((open) => !open)}
             onClose={closeFab}
             count={list.length}
             onAdd={add}
+            buttonRef={fabRef}
             onSearch={() => {
               setFabOpen(false);
               setListOpen(false);
@@ -212,6 +222,7 @@ export function HomeMap({ username, initialList }: Props) {
           onClose={closeSearch}
         />
       )}
+      {flight && <FlyingCutlery from={flight} target={fabRef} onDone={() => setFlight(null)} />}
       {toast && <Toast message={toast} />}
       {phase === "error" && <MapError />}
       {phase !== "splash" && <AvatarMenu username={username} />}
