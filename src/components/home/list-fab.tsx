@@ -8,7 +8,6 @@ type Props = {
   onToggle: () => void;
   onClose: () => void;
   count: number;
-  onAdd: () => void;
   onShowList: () => void;
   onSearch: () => void;
   onNewRestaurant: () => void;
@@ -48,13 +47,12 @@ function MenuItem({ icon, label, onClick, delayMs, badge }: ItemProps) {
   );
 }
 
-// The fork menu: round knife-and-fork button (bottom-right). Tapping it pops Search, My list and Add up above it.
+// The fork menu: round knife-and-fork button (bottom-right). Tapping it pops Search, New restaurant and My list up above it.
 export function ListFab({
   open,
   onToggle,
   onClose,
   count,
-  onAdd,
   onShowList,
   onSearch,
   onNewRestaurant,
@@ -89,10 +87,9 @@ export function ListFab({
             className="fixed inset-0 -z-10 bg-black/25 motion-safe:animate-[fade-in_150ms_ease-out]"
           />
           <div role="menu" aria-label="Lista" className="flex flex-col items-end gap-2.5">
-            <MenuItem icon={<MagnifierIcon className="size-5" />} label="Pesquisar" onClick={onSearch} delayMs={120} />
-            <MenuItem icon={<PinPlusIcon />} label="Novo restaurante" onClick={onNewRestaurant} delayMs={80} />
-            <MenuItem icon={<ListIcon />} label="A minha lista" onClick={onShowList} delayMs={40} badge={count} />
-            <MenuItem icon={<PlusIcon />} label="Adicionar" onClick={onAdd} delayMs={0} />
+            <MenuItem icon={<MagnifierIcon className="size-5" />} label="Pesquisar" onClick={onSearch} delayMs={80} />
+            <MenuItem icon={<PinPlusIcon />} label="Novo restaurante" onClick={onNewRestaurant} delayMs={40} />
+            <MenuItem icon={<ListIcon />} label="A minha lista" onClick={onShowList} delayMs={0} badge={count} />
           </div>
         </>
       )}
@@ -120,14 +117,6 @@ export function CutleryIcon({ className }: { className: string }) {
       aria-hidden="true"
       className={`${className} bg-current [mask:url(/icons/cutlery.png)_center/contain_no-repeat]`}
     />
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-5">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
   );
 }
 

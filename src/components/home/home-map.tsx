@@ -175,11 +175,6 @@ export function HomeMap({ username, initialList, initialCustomPlaces }: Props) {
   }
   const selectedItem = selected ? (list.find((item) => item.placeId === selected.id) ?? null) : null;
 
-  function add() {
-    setFabOpen(false);
-    setToast("Toca num restaurante no mapa para o adicionar");
-  }
-
   function choose(status: ListStatus, details: EntryDetails | undefined, origin: DOMRect) {
     if (!selected || adding) return;
     const place = selected;
@@ -255,7 +250,6 @@ export function HomeMap({ username, initialList, initialCustomPlaces }: Props) {
             onToggle={() => setFabOpen((open) => !open)}
             onClose={closeFab}
             count={list.length}
-            onAdd={add}
             buttonRef={fabRef}
             onNewRestaurant={() => openNew("")}
             onSearch={() => {
