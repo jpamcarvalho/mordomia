@@ -9,6 +9,7 @@ import {
   resolveInitialView,
   resolveRecenter,
   type Camera,
+  type LocationResult,
   type LocationState,
 } from "@/lib/map/location";
 import { homePhase, type MapStatus } from "@/lib/map/phase";
@@ -28,18 +29,39 @@ export function HomeMap({ username, config }: Props) {
   const [mapStatus, setMapStatus] = useState<MapStatus>(config ? "loading" : "failed");
   const [noticeDismissed, setNoticeDismissed] = useState(false);
   const [recentering, setRecentering] = useState(false);
+  const [camera, setCamera] = useState<Camera | null>(null);
   const requested = useRef(false);
+  // Latest location for async callbacks (late reading, recenter) that outlive the render they started in.
+  const locationRef = useRef<LocationState | null>(null);
+
+  const updateLocation = useCallback((state: LocationState) => {
+    locationRef.current = state;
+    setLocation(state);
+  }, []);
+
+  // AC-7 / AC-18 / Decision #25: apply a reading to the current state and move the camera.
+  const applyReading = useCallback(
+    (result: LocationResult) => {
+      const { state, camera: next } = resolveRecenter(locationRef.current!, result);
+      updateLocation(state);
+      setCamera(next);
+    },
+    [updateLocation],
+  );
 
   // AC-4: a single reading on mount; the ref keeps StrictMode's double effect from asking twice.
+  // Capped at 10 s from the request (Decision #29); a late success moves map + dot there (AC-18).
   useEffect(() => {
     if (requested.current) return;
     requested.current = true;
-    requestLocation(navigator.geolocation).then((result) => {
+    requestLocation(navigator.geolocation, {
+      onLateSuccess: (position) => applyReading({ ok: true, position }),
+    }).then((result) => {
       const view = resolveInitialView(result);
       setInitialView(view);
-      setLocation(view);
+      updateLocation(view);
     });
-  }, []);
+  }, [applyReading, updateLocation]);
 
   const fail = useCallback(() => setMapStatus("failed"), []);
 
@@ -58,15 +80,13 @@ export function HomeMap({ username, config }: Props) {
     [],
   );
 
-  // AC-7 / Decision #25: fresh reading; returns the camera MapView applies.
-  async function recenter(): Promise<Camera> {
+  // AC-7 / Decision #25: fresh reading (same 10 s cap), then move the camera.
+  async function recenter() {
     setRecentering(true);
     const result = await requestLocation(navigator.geolocation);
-    const { state, camera } = resolveRecenter(location!, result);
-    setLocation(state);
+    applyReading(result);
     if (!result.ok) setNoticeDismissed(false);
     setRecentering(false);
-    return camera;
   }
 
   const phase = homePhase(location !== null, mapStatus);
@@ -80,6 +100,7 @@ export function HomeMap({ username, config }: Props) {
               mapId={config.mapId}
               initialView={initialView}
               userPosition={location.userPosition}
+              camera={camera}
               showRecenter={phase === "map"}
               recentering={recentering}
               onRecenter={recenter}

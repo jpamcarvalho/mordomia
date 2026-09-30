@@ -25,9 +25,13 @@ polished login/sign-up page. No data or database changes: this feature is UI onl
 ### Home (`/`, signed-in)
 - **AC-3** — WHEN a signed-in user opens `/` THE SYSTEM SHALL show a white splash screen with "Mordomia" centered, a
   terracotta spinner and the text "Finding your location…" until the map is ready. The splash also covers the
-  transition right after signing in.
+  transition right after signing in. The splash applies to `/` only; other routes never show it (Decision #30).
 - **AC-4** — WHEN the home page loads THE SYSTEM SHALL request the browser geolocation once (single reading, no live
-  tracking) with a 10-second timeout.
+  tracking) with a 10-second timeout. The 10 seconds count from the request, including time the browser's permission
+  prompt is left unanswered (Decision #29).
+- **AC-18** — IF the location arrives after the AC-4 timeout already fell back to Porto (e.g. the user answers the
+  permission prompt late) THEN THE SYSTEM SHALL move the map to it at zoom 15, show the blue dot and hide the AC-6
+  notice (Decision #29).
 - **AC-5** — WHEN the location resolves THE SYSTEM SHALL show a full-screen map centered on it at zoom 15, with a blue
   "you are here" dot at the user's position.
 - **AC-6** — IF the location is denied, unavailable or times out THEN THE SYSTEM SHALL center the map on Porto,
@@ -110,4 +114,7 @@ polished login/sign-up page. No data or database changes: this feature is UI onl
 | 25 | (architect OQ-3) Recenter reading fails | Keep map and dot at the last successful location if there was one; move to Porto zoom 13 only if there never was one; the AC-6 notice shows in both cases | 2026-09-30 |
 | 26 | (architect OQ-4) Accessible names | Avatar "Account menu", recenter "Recenter map", notice ✕ "Dismiss", password toggle visible "Show"/"Hide" with aria-labels "Show password"/"Hide password" | 2026-09-30 |
 | 27 | (implementer, build) User said "do not write tests in this feature" — what happens to tests? | No NEW tests from Task 4 on: keep tests already written (incl. `home-map.test.tsx`), drop Task 5 (home/theme e2e) | 2026-09-30 |
+| 29 | (reviewer OQ-1) Location prompt left unanswered: the browser timeout never starts, splash stays forever | Overall 10 s cap from the request → Porto + notice; a late success then moves map + dot to the user (new AC-18) | 2026-09-30 |
+| 30 | (reviewer OQ-2 / finding 2) Root `loading.tsx` splash applies to every route | Home only: move home into a `(home)` route group so the splash covers `/` only | 2026-09-30 |
+| 31 | (review round 1) Which findings to fix | Fix #29 and #30. Finding 1 (Playwright dev server would load real Maps vars from a future `.env.local`) NOT fixed | 2026-09-30 |
 | 28 | (implementer, build) Dev server on :3000 blocks Playwright's own server (Next 16 dev lock) | Main session stops :3000 before the full check (Task 6) and restarts it afterwards | 2026-09-30 |

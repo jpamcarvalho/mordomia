@@ -21,17 +21,37 @@ const ERROR_REASONS: Record<number, "denied" | "unavailable" | "timeout"> = {
   3: "timeout",
 };
 
+export type RequestLocationOptions = {
+  // Called when the reading succeeds after the cap already resolved as a timeout (AC-18).
+  onLateSuccess?: (position: LatLng) => void;
+};
+
 // One getCurrentPosition reading (AC-4). Never watches the position.
-export function requestLocation(geo: Geolocation | undefined): Promise<LocationResult> {
+// Resolves a "timeout" failure at most GEOLOCATION_OPTIONS.timeout ms after the request, even while the browser's
+// permission prompt is unanswered (its own timeout only starts once permission is granted; Decision #29).
+// A success after that cap goes to onLateSuccess; a failure after it is ignored.
+export function requestLocation(
+  geo: Geolocation | undefined,
+  { onLateSuccess }: RequestLocationOptions = {},
+): Promise<LocationResult> {
   if (!geo) return Promise.resolve({ ok: false, reason: "unsupported" });
   return new Promise((resolve) => {
+    let settled = false;
+    const settle = (result: LocationResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(cap);
+      resolve(result);
+    };
+    const cap = setTimeout(() => settle({ ok: false, reason: "timeout" }), GEOLOCATION_OPTIONS.timeout);
+
     geo.getCurrentPosition(
-      (position) =>
-        resolve({
-          ok: true,
-          position: { lat: position.coords.latitude, lng: position.coords.longitude },
-        }),
-      (error) => resolve({ ok: false, reason: ERROR_REASONS[error.code] ?? "unavailable" }),
+      (position) => {
+        const latLng = { lat: position.coords.latitude, lng: position.coords.longitude };
+        if (settled) onLateSuccess?.(latLng);
+        else settle({ ok: true, position: latLng });
+      },
+      (error) => settle({ ok: false, reason: ERROR_REASONS[error.code] ?? "unavailable" }),
       GEOLOCATION_OPTIONS,
     );
   });

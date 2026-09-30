@@ -100,3 +100,22 @@
     and transit hidden, restaurant icons visible; no restaurant markers. If no key is available yet, report the task
     as **pending (no key)** and do not block the feature on it.
   - Done when: every check above is reported as pass, or the task is reported as pending (no key).
+
+## Review round 1 fixes (Decisions #29–31)
+No new test files (Decision #27): update existing tests only where the behavior change breaks them.
+
+- [x] **Task 8 — Location: overall 10 s cap + late success (AC-4, AC-6, AC-18)**
+  - Files: `src/lib/map/location.ts`, `src/lib/map/phase.ts` (if needed), `src/components/home/home-map.tsx`,
+    existing `src/lib/map/location.test.ts` / `src/components/home/home-map.test.tsx` only where they break
+  - Do: the initial reading resolves `{ ok: false, reason: "timeout" }` 10 s after the request even while the
+    permission prompt is unanswered (splash → Porto zoom 13 + notice). If the underlying `getCurrentPosition` later
+    succeeds, move the map to it at zoom 15, show the blue dot and hide the notice. A late failure changes nothing.
+    Keep the single-request guarantee (one `getCurrentPosition` call; no `watchPosition`). Apply the same 10 s cap to
+    the recenter reading (AC-7 failure rules unchanged).
+  - Done when: lint, typecheck and `npm test` pass.
+
+- [ ] **Task 9 — Splash on `/` only (AC-3)**
+  - Files: move `src/app/page.tsx` → `src/app/(home)/page.tsx` and `src/app/loading.tsx` → `src/app/(home)/loading.tsx`;
+    fix imports (e.g. `../login/actions`) and any test that imports these paths
+  - Do: route group so the splash is the Suspense fallback for `/` only; `/login` and future routes get no splash.
+  - Done when: `npm run build` lists `/` and `/login` as before, and `npm run check` passes.
