@@ -10,6 +10,8 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
+    // MapLibre worker copied from node_modules (scripts/copy-maplibre-worker.mjs).
+    "public/maplibre/**",
     "build/**",
     "next-env.d.ts",
   ]),

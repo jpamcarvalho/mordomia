@@ -1,6 +1,6 @@
 "use client";
 
-// Floating recenter button, bottom-right above Google's attribution (AC-7).
+// Floating recenter button, stacked above the list button (AC-7).
 export function RecenterButton({ busy, onClick }: { busy: boolean; onClick: () => void }) {
   return (
     <button
@@ -9,7 +9,7 @@ export function RecenterButton({ busy, onClick }: { busy: boolean; onClick: () =
       disabled={busy}
       aria-busy={busy}
       onClick={onClick}
-      className="absolute right-[calc(env(safe-area-inset-right)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] z-10 flex size-12 items-center justify-center rounded-full bg-white text-foreground shadow-lg disabled:opacity-60"
+      className="flex size-12 items-center justify-center rounded-full bg-white text-foreground shadow-lg disabled:opacity-60"
     >
       <svg
         aria-hidden="true"
