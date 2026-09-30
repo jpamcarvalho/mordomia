@@ -84,7 +84,7 @@
   - Done when: `npx playwright test tests/e2e/home.spec.ts tests/e2e/theme.spec.ts` passes twice in a row, both with
     `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` unset and (if the user has one) set in `.env.local`.
 
-- [ ] **Task 6 — Full check**
+- [x] **Task 6 — Full check**
   - Files: none (fix anything that fails in the task that introduced it, then re-run)
   - AC: AC-1 … AC-17
   - Do: `npm run check`.
