@@ -117,4 +117,5 @@ polished login/sign-up page. No data or database changes: this feature is UI onl
 | 29 | (reviewer OQ-1) Location prompt left unanswered: the browser timeout never starts, splash stays forever | Overall 10 s cap from the request → Porto + notice; a late success then moves map + dot to the user (new AC-18) | 2026-09-30 |
 | 30 | (reviewer OQ-2 / finding 2) Root `loading.tsx` splash applies to every route | Home only: move home into a `(home)` route group so the splash covers `/` only | 2026-09-30 |
 | 31 | (review round 1) Which findings to fix | Fix #29 and #30. Finding 1 (Playwright dev server would load real Maps vars from a future `.env.local`) NOT fixed | 2026-09-30 |
+| 32 | Close 002 after Tasks 8–9 without a round-2 review? | Yes: close 002 without round-2 review (Tasks 8–9 verified only by the implementer's `npm run check`). Google Maps will be replaced by MapLibre + OpenFreeMap in 003 | 2026-09-30 |
 | 28 | (implementer, build) Dev server on :3000 blocks Playwright's own server (Next 16 dev lock) | Main session stops :3000 before the full check (Task 6) and restarts it afterwards | 2026-09-30 |
