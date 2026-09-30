@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signIn } from "./helpers/auth";
 import { createConfirmedUser, deleteUser, type TestUser } from "./helpers/users";
 
 test("AC-12: a signed-out request gets no suggestions (redirect or 401)", async ({ request }) => {
@@ -26,10 +27,7 @@ test.describe("signed in", () => {
   });
 
   test("AC-13: a query shorter than 2 characters returns no suggestions", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByPlaceholder("Email").fill(user.email);
-    await page.getByPlaceholder("Password").fill(user.password);
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await signIn(page, user);
     await expect(page).toHaveURL(/\/$/);
 
     const res = await page.request.get("/api/places?q=a", { maxRedirects: 0 });

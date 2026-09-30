@@ -1,12 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { signIn } from "./helpers/auth";
 import { createConfirmedUser, deleteUser, type TestUser } from "./helpers/users";
-
-async function signIn(page: Page, user: TestUser) {
-  await page.goto("/login");
-  await page.getByPlaceholder("Email").fill(user.email);
-  await page.getByPlaceholder("Password").fill(user.password);
-  await page.getByRole("button", { name: "Sign in" }).click();
-}
 
 test("AC-1: a signed-out visitor is redirected to /login", async ({ page }) => {
   await page.goto("/");
@@ -16,10 +10,10 @@ test("AC-1: a signed-out visitor is redirected to /login", async ({ page }) => {
 
 test("AC-2: sign-up rejects an invalid username", async ({ page }) => {
   await page.goto("/login");
-  await page.getByRole("button", { name: "No account? Sign up" }).click();
-  await page.getByPlaceholder("Username").fill("a!");
-  await page.getByPlaceholder("Email").fill("invalid-username@example.test");
-  await page.getByPlaceholder("Password").fill("password123");
+  await page.getByRole("tab", { name: "Sign up" }).click();
+  await page.getByLabel("Username", { exact: true }).fill("a!");
+  await page.getByLabel("Email", { exact: true }).fill("invalid-username@example.test");
+  await page.getByLabel("Password", { exact: true }).fill("password123");
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(
     page.getByText("Username must be 3–24 characters: letters, numbers or _."),

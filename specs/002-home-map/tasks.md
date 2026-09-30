@@ -30,7 +30,7 @@
   - Done when: `npm test`, `npm run typecheck`, `npm run lint` pass; `grep -rn "dark:" src` prints nothing; and
     `npx playwright test tests/e2e/pwa.spec.ts tests/e2e/auth.spec.ts` still passes.
 
-- [ ] **Task 2 — Login polish: tagline, labels, tabs, password toggle**
+- [x] **Task 2 — Login polish: tagline, labels, tabs, password toggle**
   - Files: `src/app/login/page.tsx`, `tests/e2e/helpers/auth.ts` (new `signIn`), `tests/e2e/auth.spec.ts`,
     `tests/e2e/places.spec.ts`, `tests/e2e/login.spec.ts` (new)
   - AC: AC-2, AC-13, AC-14, AC-15, AC-16, AC-17
