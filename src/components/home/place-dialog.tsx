@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { NOTES_MAX, RATING_MAX, RATING_MIN, type EntryDetails } from "@/lib/list/details";
 import { LIST_LABELS, type ListItem, type ListStatus } from "@/lib/list/types";
-import { kindLabel, type SelectedPlace } from "@/lib/map/restaurants";
+import { kindEmoji, kindLabel, type SelectedPlace } from "@/lib/map/restaurants";
 
 type Props = {
   place: SelectedPlace;
@@ -50,13 +50,18 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
       >
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium tracking-wide text-accent uppercase">{kindLabel(place.kind)}</p>
+            <p className="text-xs font-medium tracking-wide text-accent uppercase">
+              <span aria-hidden="true">{kindEmoji(place.kind)}</span> {kindLabel(place.kind)}
+            </p>
             <h2 id="place-dialog-title" className="text-xl font-semibold">
               {place.name}
             </h2>
+            {view === "choose" && !current && (
+              <p className="mt-1 text-sm text-neutral-500">Já provaste ou ainda está por provar? 😋</p>
+            )}
             {view === "choose" && current && (
               <p className="mt-1 text-sm text-neutral-500">
-                Em: {LIST_LABELS[current.status]}
+                <span aria-hidden="true">✅ </span>Já está em: {LIST_LABELS[current.status]}
                 {isSaved && current.rating !== null && ` · ${current.rating}/10`}
               </p>
             )}
@@ -81,7 +86,7 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
                 onClick={() => setView("form")}
                 className="flex h-12 items-center justify-center gap-2 rounded-full border-2 border-accent font-semibold text-accent disabled:opacity-60"
               >
-                {isSaved && <span aria-hidden="true">✓</span>}
+                <span aria-hidden="true">{isSaved ? "✏️" : "⭐"}</span>
                 {isSaved ? "Editar nota e notas" : "Adiciona à minha lista"}
               </button>
               <button
@@ -91,7 +96,7 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
                 onClick={(event) => onChoose("want", undefined, event.currentTarget.getBoundingClientRect())}
                 className="flex h-12 items-center justify-center gap-2 rounded-full bg-accent font-semibold text-white disabled:opacity-60"
               >
-                {isWant && <span aria-hidden="true">✓</span>}
+                <span aria-hidden="true">{isWant ? "✓" : "🤤"}</span>
                 {pending === "want" ? "…" : "Quero ir!"}
               </button>
             </div>
@@ -101,7 +106,7 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
               rel="noreferrer"
               className="mt-4 block text-center text-sm text-neutral-600 underline"
             >
-              Abrir no Maps
+              <span aria-hidden="true">📍 </span>Abrir no Maps
             </a>
           </>
         ) : (
@@ -116,7 +121,7 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
             <fieldset>
               <div className="mb-2 flex items-baseline justify-between">
                 <legend className="text-sm font-semibold">
-                  Nota <span className="font-normal text-neutral-500">(opcional)</span>
+                  <span aria-hidden="true">⭐ </span>Que nota lhe dás? <span className="font-normal text-neutral-500">(opcional)</span>
                 </legend>
                 <span aria-live="polite" className="text-2xl font-bold text-accent">
                   {rating === null ? "–" : rating}
@@ -147,13 +152,13 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
             </fieldset>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold">Notas</span>
+              <span className="text-sm font-semibold"><span aria-hidden="true">📝 </span>Notas</span>
               <textarea
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 maxLength={NOTES_MAX}
                 rows={4}
-                placeholder="O que quiseres lembrar: pratos, com quem foste, preço…"
+                placeholder="O que queres lembrar? Pratos, com quem foste, preço…"
                 className="resize-none rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-base outline-none focus:border-accent focus:bg-white"
               />
             </label>
@@ -171,7 +176,7 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
                 disabled={pending !== null}
                 className="h-12 flex-[2] rounded-full bg-accent font-semibold text-white shadow disabled:opacity-60"
               >
-                {pending === "saved" ? "A guardar…" : "Guardar"}
+                {pending === "saved" ? "A guardar…" : "Guardar 👌"}
               </button>
             </div>
           </form>
