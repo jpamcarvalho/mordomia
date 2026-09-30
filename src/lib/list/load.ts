@@ -1,5 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
-import { customPlaceId, isFoodClass, type SelectedPlace } from "@/lib/map/restaurants";
+import { customPlaceId, isFoodClass, parseKinds, type SelectedPlace } from "@/lib/map/restaurants";
 import { LIST_STATUSES, isListStatus, type ListItem } from "./types";
 
 type Row = {
@@ -13,6 +13,7 @@ type Row = {
     user_added: boolean;
     name: string;
     kind: string | null;
+    kinds: string[] | null;
     lat: number | null;
     lng: number | null;
   } | null;
@@ -25,7 +26,7 @@ export async function loadList(
 ): Promise<ListItem[]> {
   const { data } = await supabase
     .from("entries")
-    .select("id, status, rating, notes, restaurants(id, osm_id, user_added, name, kind, lat, lng)")
+    .select("id, status, rating, notes, restaurants(id, osm_id, user_added, name, kind, kinds, lat, lng)")
     .eq("user_id", userId)
     .in("status", [...LIST_STATUSES])
     .order("updated_at", { ascending: false });
@@ -40,6 +41,7 @@ export async function loadList(
             placeId,
             name: r.name,
             kind: isFoodClass(r.kind) ? r.kind : null,
+            kinds: parseKinds(r.kinds) ?? undefined,
             lat: r.lat,
             lng: r.lng,
             rating,
@@ -54,12 +56,12 @@ export async function loadList(
 export async function loadCustomPlaces(supabase: Awaited<ReturnType<typeof createClient>>): Promise<SelectedPlace[]> {
   const { data } = await supabase
     .from("restaurants")
-    .select("id, name, kind, lat, lng")
+    .select("id, name, kind, kinds, lat, lng")
     .eq("user_added", true)
     .limit(5000);
   return (data ?? []).flatMap((r) =>
     isFoodClass(r.kind) && r.lat != null && r.lng != null
-      ? [{ id: customPlaceId(r.id), name: r.name, kind: r.kind, lat: r.lat, lng: r.lng }]
+      ? [{ id: customPlaceId(r.id), name: r.name, kind: r.kind, kinds: parseKinds(r.kinds) ?? undefined, lat: r.lat, lng: r.lng }]
       : [],
   );
 }

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { customPlaceId, isFoodClass } from "@/lib/map/restaurants";
+import { customPlaceId, isFoodClass, parseKinds } from "@/lib/map/restaurants";
 import { PHOTON_TAGS, PHOTON_URL, rankResults, toSearchResult, type SearchResult } from "@/lib/search/photon";
 
 // Restaurant search by name: restaurants added by users, then Photon (OpenStreetMap) biased to the position.
@@ -31,13 +31,13 @@ export async function GET(request: NextRequest) {
   // Escape LIKE wildcards in the user's text.
   const pattern = `%${q.slice(0, 100).replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
   const [custom, res] = await Promise.all([
-    supabase.from("restaurants").select("id, name, kind, lat, lng").eq("user_added", true).ilike("name", pattern).limit(10),
+    supabase.from("restaurants").select("id, name, kind, kinds, lat, lng").eq("user_added", true).ilike("name", pattern).limit(10),
     fetch(url, { headers: { "User-Agent": "Mordomia (friends-only restaurant app)" } }),
   ]);
 
   const userAdded: SearchResult[] = (custom.data ?? []).flatMap((r) =>
     isFoodClass(r.kind) && r.lat != null && r.lng != null
-      ? [{ id: customPlaceId(r.id), name: r.name, kind: r.kind, lat: r.lat, lng: r.lng, address: "Adicionado por um utilizador do Mordomia" }]
+      ? [{ id: customPlaceId(r.id), name: r.name, kind: r.kind, kinds: parseKinds(r.kinds) ?? undefined, lat: r.lat, lng: r.lng, address: "Adicionado por um utilizador do Mordomia" }]
       : [],
   );
   if (!res.ok && userAdded.length === 0) {

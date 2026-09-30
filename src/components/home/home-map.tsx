@@ -133,7 +133,7 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
     setSearchOpen(false);
     setListOpen(false);
     setSelected(null);
-    setDraft({ name, kind: "restaurant" });
+    setDraft({ name, kinds: ["restaurant"] });
   }
 
   function startPlacing(next: RestaurantDraft & { gps: LatLng }) {
@@ -153,7 +153,7 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
     if (!placing || !pin) return;
     const restaurant = {
       name: placing.name,
-      kind: placing.kind,
+      kinds: placing.kinds,
       lat: pin.lat,
       lng: pin.lng,
       gpsLat: placing.gps.lat,
@@ -208,7 +208,7 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
 
   function pick(item: ListItem) {
     setListOpen(false);
-    setSelected({ id: item.placeId, name: item.name, kind: item.kind ?? "restaurant", lat: item.lat, lng: item.lng });
+    setSelected({ id: item.placeId, name: item.name, kind: item.kind ?? "restaurant", kinds: item.kinds, lat: item.lat, lng: item.lng });
   }
 
   return (
@@ -281,7 +281,7 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
           near={location.userPosition ?? location.center}
           onPick={(result) => {
             setSearchOpen(false);
-            setSelected({ id: result.id, name: result.name, kind: result.kind, lat: result.lat, lng: result.lng });
+            setSelected({ id: result.id, name: result.name, kind: result.kind, kinds: result.kinds, lat: result.lat, lng: result.lng });
           }}
           onAddNew={openNew}
           onClose={closeSearch}
@@ -293,16 +293,16 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
       {phase === "map" && placing && pin && (
         <PinPlacement
           name={placing.name}
-          kind={placing.kind}
+          kind={placing.kinds[0]}
           gps={placing.gps}
           pin={pin}
           saving={creating}
           onConfirm={create}
           onRecenter={() => setPlacement({ gps: placing.gps, radiusM: PIN_RANGE_M })}
           onBack={() => {
-            const { name, kind } = placing;
+            const { name, kinds } = placing;
             stopPlacing();
-            setDraft({ name, kind });
+            setDraft({ name, kinds });
           }}
         />
       )}

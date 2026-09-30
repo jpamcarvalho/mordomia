@@ -22,6 +22,7 @@ export type ListItem = {
   placeId: string;
   name: string;
   kind: FoodClass | null;
+  kinds?: FoodClass[];
   lat: number;
   lng: number;
   // 0–10, only on "saved".

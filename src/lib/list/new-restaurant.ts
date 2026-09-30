@@ -1,11 +1,12 @@
-import { isFoodClass, type FoodClass } from "@/lib/map/restaurants";
+import { parseKinds, type FoodClass } from "@/lib/map/restaurants";
 
 export const NAME_MAX = 100;
 // A restaurant with the same name this close by is treated as the same place.
 export const DUPLICATE_RADIUS_M = 75;
 
-// lat/lng: where the pin was placed. gpsLat/gpsLng: the user's position when adding (the pin must be near it).
-export type NewRestaurant = { name: string; kind: FoodClass; lat: number; lng: number; gpsLat: number; gpsLng: number };
+// kinds: one or more types, main (first chosen) first. lat/lng: where the pin was placed.
+// gpsLat/gpsLng: the user's position when adding (the pin must be near it).
+export type NewRestaurant = { name: string; kinds: FoodClass[]; lat: number; lng: number; gpsLat: number; gpsLng: number };
 
 function isCoord(lat: unknown, lng: unknown): lat is number {
   return (
@@ -22,13 +23,14 @@ function isCoord(lat: unknown, lng: unknown): lat is number {
 // more than PIN_RANGE_M from the user's position.
 export function parseNewRestaurant(input: Partial<Record<keyof NewRestaurant, unknown>> | null | undefined): NewRestaurant | null {
   const name = typeof input?.name === "string" ? input.name.trim().replace(/\s+/g, " ") : "";
-  const { kind, lat, lng, gpsLat, gpsLng } = input ?? {};
-  if (!name || name.length > NAME_MAX || !isFoodClass(kind)) return null;
+  const { lat, lng, gpsLat, gpsLng } = input ?? {};
+  const kinds = parseKinds(input?.kinds);
+  if (!name || name.length > NAME_MAX || !kinds) return null;
   if (!isCoord(lat, lng) || !isCoord(gpsLat, gpsLng)) return null;
   const pin = { lat, lng: lng as number };
   const gps = { lat: gpsLat, lng: gpsLng as number };
   if (!withinPinRange(gps, pin)) return null;
-  return { name, kind, ...pin, gpsLat: gps.lat, gpsLng: gps.lng };
+  return { name, kinds, ...pin, gpsLat: gps.lat, gpsLng: gps.lng };
 }
 
 // Great-circle distance in meters.

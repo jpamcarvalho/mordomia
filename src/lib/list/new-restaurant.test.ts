@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { NAME_MAX, PIN_RANGE_M, circleRing, distanceMeters, parseNewRestaurant } from "./new-restaurant";
 
-const OK = { name: "  Tasca   do Zé ", kind: "restaurant", lat: 41.15, lng: -8.61, gpsLat: 41.1503, gpsLng: -8.61 };
+const OK = { name: "  Tasca   do Zé ", kinds: ["cafe", "bakery"], lat: 41.15, lng: -8.61, gpsLat: 41.1503, gpsLng: -8.61 };
 
 describe("parseNewRestaurant", () => {
   it("accepts a valid restaurant and tidies the name", () => {
     expect(parseNewRestaurant(OK)).toEqual({
       name: "Tasca do Zé",
-      kind: "restaurant",
+      kinds: ["cafe", "bakery"],
       lat: 41.15,
       lng: -8.61,
       gpsLat: 41.1503,
@@ -18,7 +18,10 @@ describe("parseNewRestaurant", () => {
   it("rejects missing or bad fields", () => {
     expect(parseNewRestaurant({ ...OK, name: "  " })).toBeNull();
     expect(parseNewRestaurant({ ...OK, name: "x".repeat(NAME_MAX + 1) })).toBeNull();
-    expect(parseNewRestaurant({ ...OK, kind: "shop" })).toBeNull();
+    expect(parseNewRestaurant({ ...OK, kinds: ["shop"] })).toBeNull();
+    expect(parseNewRestaurant({ ...OK, kinds: [] })).toBeNull();
+    expect(parseNewRestaurant({ ...OK, kinds: "cafe" })).toBeNull();
+    expect(parseNewRestaurant({ ...OK, kinds: ["cafe", "cafe"] })).toBeNull();
     expect(parseNewRestaurant({ ...OK, lat: undefined })).toBeNull();
     expect(parseNewRestaurant({ ...OK, lat: 91 })).toBeNull();
     expect(parseNewRestaurant({ ...OK, lng: Number.NaN })).toBeNull();

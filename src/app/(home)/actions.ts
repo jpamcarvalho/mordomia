@@ -5,7 +5,7 @@ import { parseDetails } from "@/lib/list/details";
 import { isListStatus, type ListItem, type ListStatus } from "@/lib/list/types";
 import { DUPLICATE_RADIUS_M, distanceMeters, parseNewRestaurant, type NewRestaurant } from "@/lib/list/new-restaurant";
 import { normalizeName } from "@/lib/search/photon";
-import { customPlaceId, customRestaurantId, isFoodClass, type SelectedPlace } from "@/lib/map/restaurants";
+import { customPlaceId, customRestaurantId, isFoodClass, parseKinds, type SelectedPlace } from "@/lib/map/restaurants";
 
 export type AddResult = { ok: true; item: ListItem } | { ok: false; error: string };
 
@@ -85,6 +85,7 @@ export async function addToList(
       placeId: place.id,
       name: place.name,
       kind: place.kind,
+      kinds: place.kinds,
       lat: place.lat,
       lng: place.lng,
       rating: saved.rating,
@@ -110,7 +111,8 @@ export type CreateResult =
 export async function createRestaurant(input: Partial<NewRestaurant>): Promise<CreateResult> {
   const restaurant = parseNewRestaurant(input);
   if (!restaurant) return { ok: false, error: "Indica um nome e um tipo, e mantém o pin a menos de 50 m de ti." };
-  const row = { name: restaurant.name, kind: restaurant.kind, lat: restaurant.lat, lng: restaurant.lng };
+  const { kinds } = restaurant;
+  const row = { name: restaurant.name, kind: kinds[0], kinds, lat: restaurant.lat, lng: restaurant.lng };
 
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
@@ -119,7 +121,7 @@ export async function createRestaurant(input: Partial<NewRestaurant>): Promise<C
   // ~0.002° ≈ 200 m: candidates for the duplicate check.
   const { data: nearby } = await supabase
     .from("restaurants")
-    .select("id, name, kind, lat, lng")
+    .select("id, name, kind, kinds, lat, lng")
     .eq("user_added", true)
     .gte("lat", restaurant.lat - 0.002)
     .lte("lat", restaurant.lat + 0.002)
@@ -134,7 +136,14 @@ export async function createRestaurant(input: Partial<NewRestaurant>): Promise<C
     return {
       ok: true,
       existing: true,
-      place: { id: customPlaceId(duplicate.id), name: duplicate.name, kind: duplicate.kind, lat: duplicate.lat, lng: duplicate.lng },
+      place: {
+        id: customPlaceId(duplicate.id),
+        name: duplicate.name,
+        kind: duplicate.kind,
+        kinds: parseKinds(duplicate.kinds) ?? undefined,
+        lat: duplicate.lat,
+        lng: duplicate.lng,
+      },
     };
   }
 

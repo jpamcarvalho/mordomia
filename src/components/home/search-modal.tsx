@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { LatLng } from "@/lib/map/location";
-import { kindLabel } from "@/lib/map/restaurants";
+import { kindsLabel, placeKinds } from "@/lib/map/restaurants";
 import type { SearchResult } from "@/lib/search/photon";
 
 type Props = {
@@ -105,7 +105,7 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
                   <button type="button" onClick={() => onPick(result)} className="w-full px-4 py-3 text-left hover:bg-neutral-50">
                     <span className="block truncate font-medium">{result.name}</span>
                     <span className="block truncate text-xs text-neutral-500">
-                      {kindLabel(result.kind)}
+                      {kindsLabel(placeKinds(result))}
                       {result.address && ` · ${result.address}`}
                     </span>
                   </button>

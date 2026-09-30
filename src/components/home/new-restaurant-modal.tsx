@@ -5,7 +5,8 @@ import { NAME_MAX, PIN_RANGE_M } from "@/lib/list/new-restaurant";
 import type { LatLng } from "@/lib/map/location";
 import { FOOD_CLASSES, kindEmoji, kindLabel, type FoodClass } from "@/lib/map/restaurants";
 
-export type RestaurantDraft = { name: string; kind: FoodClass };
+// kinds: main (first chosen) first.
+export type RestaurantDraft = { name: string; kinds: FoodClass[] };
 
 type Props = {
   initial: RestaurantDraft;
@@ -34,7 +35,7 @@ const ERRORS: Record<number, string> = {
 // Step 2 (PinPlacement) puts the pin on the exact spot.
 export function NewRestaurantModal({ initial, onNext, onClose }: Props) {
   const [name, setName] = useState(initial.name);
-  const [kind, setKind] = useState<FoodClass>(initial.kind);
+  const [kinds, setKinds] = useState<FoodClass[]>(initial.kinds);
   const [fix, setFix] = useState<Fix>({ status: "locating" });
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -71,7 +72,7 @@ export function NewRestaurantModal({ initial, onNext, onClose }: Props) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [requestFix, initial.name, onClose]);
 
-  const canContinue = name.trim().length > 0 && fix.status === "ok";
+  const canContinue = name.trim().length > 0 && kinds.length > 0 && fix.status === "ok";
 
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/30 px-5" onClick={onClose}>
@@ -83,7 +84,7 @@ export function NewRestaurantModal({ initial, onNext, onClose }: Props) {
         onSubmit={(event) => {
           event.preventDefault();
           if (!canContinue || fix.status !== "ok") return;
-          onNext({ name: name.trim(), kind, gps: fix.position });
+          onNext({ name: name.trim(), kinds, gps: fix.position });
         }}
         className="flex max-h-[90vh] w-full max-w-sm flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
       >
@@ -113,17 +114,21 @@ export function NewRestaurantModal({ initial, onNext, onClose }: Props) {
         </label>
 
         <fieldset>
-          <legend className="mb-2 text-sm font-semibold">Tipo</legend>
-          <div role="radiogroup" aria-label="Tipo" className="flex flex-wrap gap-2">
+          <legend className="mb-2 text-sm font-semibold">
+            Tipo <span className="font-normal text-neutral-500">(podes escolher vários)</span>
+          </legend>
+          <div role="group" aria-label="Tipo" className="flex flex-wrap gap-2">
             {FOOD_CLASSES.map((value) => {
-              const active = kind === value;
+              const active = kinds.includes(value);
               return (
                 <button
                   key={value}
                   type="button"
-                  role="radio"
+                  role="checkbox"
                   aria-checked={active}
-                  onClick={() => setKind(value)}
+                  onClick={() =>
+                    setKinds((current) => (active ? current.filter((k) => k !== value) : [...current, value]))
+                  }
                   className={`flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition ${
                     active ? "bg-accent text-white shadow" : "bg-neutral-100 text-neutral-700"
                   }`}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { customPlaceId, customRestaurantId, kindLabel, toSelectedPlace } from "./restaurants";
+import { customPlaceId, customRestaurantId, kindLabel, kindsLabel, parseKinds, placeKinds, toSelectedPlace } from "./restaurants";
 
 const AT = { lat: 41.15, lng: -8.61 };
 
@@ -25,6 +25,29 @@ describe("toSelectedPlace", () => {
 
   it("falls back to a name+position id", () => {
     expect(toSelectedPlace({ properties: { name: "Bar", class: "bar" } }, AT)?.id).toBe("Bar@41.15000,-8.61000");
+  });
+});
+
+describe("parseKinds", () => {
+  it("accepts distinct food types in order", () => {
+    expect(parseKinds(["cafe", "bakery"])).toEqual(["cafe", "bakery"]);
+  });
+
+  it("rejects empty, unknown, repeated or non-array values", () => {
+    expect(parseKinds([])).toBeNull();
+    expect(parseKinds(["cafe", "shop"])).toBeNull();
+    expect(parseKinds(["cafe", "cafe"])).toBeNull();
+    expect(parseKinds("cafe")).toBeNull();
+    expect(parseKinds(null)).toBeNull();
+  });
+});
+
+describe("placeKinds / kindsLabel", () => {
+  it("uses every type when there are several, else the main one", () => {
+    expect(placeKinds({ kind: "cafe", kinds: ["cafe", "bakery"] })).toEqual(["cafe", "bakery"]);
+    expect(placeKinds({ kind: "bar" })).toEqual(["bar"]);
+    expect(placeKinds({ kind: null })).toEqual([]);
+    expect(kindsLabel(["cafe", "fast_food"])).toBe("Café · Fast food");
   });
 });
 

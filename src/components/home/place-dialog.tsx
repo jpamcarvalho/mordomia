@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { NOTES_MAX, RATING_MAX, RATING_MIN, type EntryDetails } from "@/lib/list/details";
 import { LIST_LABELS, type ListItem, type ListStatus } from "@/lib/list/types";
-import { kindEmoji, kindLabel, type SelectedPlace } from "@/lib/map/restaurants";
+import { kindEmoji, kindLabel, placeKinds, type SelectedPlace } from "@/lib/map/restaurants";
 
 type Props = {
   place: SelectedPlace;
@@ -51,7 +51,12 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium tracking-wide text-accent uppercase">
-              <span aria-hidden="true">{kindEmoji(place.kind)}</span> {kindLabel(place.kind)}
+              {placeKinds(place).map((kind, index) => (
+                <span key={kind}>
+                  {index > 0 && " · "}
+                  <span aria-hidden="true">{kindEmoji(kind)}</span> {kindLabel(kind)}
+                </span>
+              ))}
             </p>
             <h2 id="place-dialog-title" className="text-xl font-semibold">
               {place.name}

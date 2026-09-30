@@ -15,7 +15,10 @@ export type FoodClass = (typeof FOOD_CLASSES)[number];
 export type SelectedPlace = {
   id: string;
   name: string;
+  // Main type (map icon).
   kind: FoodClass;
+  // All types, main first; only user-added places can have more than one.
+  kinds?: FoodClass[];
   lat: number;
   lng: number;
 };
@@ -32,6 +35,21 @@ const KIND_LABELS: Record<FoodClass, string> = {
 
 export function kindLabel(kind: FoodClass): string {
   return KIND_LABELS[kind];
+}
+
+// All of a place's types, main first.
+export function placeKinds(place: { kind: FoodClass | null; kinds?: FoodClass[] }): FoodClass[] {
+  return place.kinds?.length ? place.kinds : place.kind ? [place.kind] : [];
+}
+
+export function kindsLabel(kinds: FoodClass[]): string {
+  return kinds.map(kindLabel).join(" · ");
+}
+
+// A list of distinct food types (as stored in restaurants.kinds), or null.
+export function parseKinds(value: unknown): FoodClass[] | null {
+  if (!Array.isArray(value) || value.length === 0 || !value.every(isFoodClass)) return null;
+  return new Set(value).size === value.length ? value : null;
 }
 
 export function isFoodClass(value: unknown): value is FoodClass {
