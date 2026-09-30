@@ -11,6 +11,17 @@ export function parseBio(input: unknown): { bio: string | null } | null {
   return { bio };
 }
 
+// The name shown on the profile; blank falls back to the username.
+export const DISPLAY_NAME_MAX = 40;
+
+// Validates a display name from the client: trims, collapses spaces; blank becomes null.
+export function parseDisplayName(input: unknown): { displayName: string | null } | null {
+  if (input !== null && typeof input !== "string") return null;
+  const displayName = input?.trim().replace(/\s+/g, " ") || null;
+  if (displayName && displayName.length > DISPLAY_NAME_MAX) return null;
+  return { displayName };
+}
+
 // Profile photos live in the "avatars" bucket at {userId}/{filename}.
 export function isOwnAvatarPath(userId: string, path: unknown): path is string {
   if (typeof path !== "string") return false;

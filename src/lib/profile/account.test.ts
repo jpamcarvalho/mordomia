@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ListItem } from "@/lib/list/types";
-import { BIO_MAX, accountStats, isOwnAvatarPath, levelFor, parseBio } from "./account";
+import { BIO_MAX, DISPLAY_NAME_MAX, accountStats, isOwnAvatarPath, levelFor, parseBio, parseDisplayName } from "./account";
 
 const USER = "1b0c8a2e-0000-4000-8000-000000000001";
 
@@ -19,6 +19,18 @@ describe("parseBio", () => {
     expect(parseBio(42)).toBeNull();
     expect(parseBio("a".repeat(BIO_MAX + 1))).toBeNull();
     expect(parseBio("a".repeat(BIO_MAX))).toEqual({ bio: "a".repeat(BIO_MAX) });
+  });
+});
+
+describe("parseDisplayName", () => {
+  it("trims, collapses spaces and turns blank into null", () => {
+    expect(parseDisplayName("  João   Carvalho ")).toEqual({ displayName: "João Carvalho" });
+    expect(parseDisplayName("  ")).toEqual({ displayName: null });
+  });
+
+  it("rejects non-strings and names over the limit", () => {
+    expect(parseDisplayName(1)).toBeNull();
+    expect(parseDisplayName("a".repeat(DISPLAY_NAME_MAX + 1))).toBeNull();
   });
 });
 

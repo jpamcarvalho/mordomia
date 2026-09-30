@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { isOwnAvatarPath, parseBio } from "@/lib/profile/account";
+import { isOwnAvatarPath, parseBio, parseDisplayName } from "@/lib/profile/account";
 import { AVATAR_BUCKET, avatarUrl } from "@/lib/profile/load";
 
 export type BioResult = { ok: true; bio: string | null } | { ok: false; error: string };
+export type NameResult = { ok: true; displayName: string | null } | { ok: false; error: string };
 export type AvatarResult = { ok: true; url: string | null } | { ok: false; error: string };
 
 async function signedIn() {
@@ -24,6 +25,19 @@ export async function saveBio(input: unknown): Promise<BioResult> {
   const { error } = await supabase.from("profiles").update({ bio: parsed.bio }).eq("id", userId);
   if (error) return { ok: false, error: "Não foi possível guardar. Tenta outra vez." };
   return { ok: true, bio: parsed.bio };
+}
+
+// Only the display name; the username never changes (the database refuses it too).
+export async function saveDisplayName(input: unknown): Promise<NameResult> {
+  const parsed = parseDisplayName(input);
+  if (!parsed) return { ok: false, error: "O nome é demasiado longo." };
+
+  const { supabase, userId } = await signedIn();
+  if (!userId) return { ok: false, error: "Sessão não iniciada." };
+
+  const { error } = await supabase.from("profiles").update({ display_name: parsed.displayName }).eq("id", userId);
+  if (error) return { ok: false, error: "Não foi possível guardar. Tenta outra vez." };
+  return { ok: true, displayName: parsed.displayName };
 }
 
 // The photo is uploaded from the browser straight to the user's folder; this points the profile at it

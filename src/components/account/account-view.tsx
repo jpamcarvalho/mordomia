@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { logout } from "@/app/login/actions";
-import { saveBio, setAvatar } from "@/app/account/actions";
+import { saveBio, saveDisplayName, setAvatar } from "@/app/account/actions";
 import { Spinner } from "@/components/spinner";
-import { BIO_MAX, levelFor, type AccountStats } from "@/lib/profile/account";
+import { BIO_MAX, DISPLAY_NAME_MAX, levelFor, type AccountStats } from "@/lib/profile/account";
 import { avatarInitial } from "@/lib/profile/avatar";
 import { AVATAR_BUCKET } from "@/lib/profile/load";
 import { createClient } from "@/lib/supabase/client";
@@ -80,7 +80,7 @@ export function AccountView({ userId, username, displayName, bio, avatarUrl, mem
 
         <section style={delay(0)} className={`flex flex-col items-center text-center ${ENTER}`}>
           <AvatarPicker userId={userId} username={username} initialUrl={avatarUrl} />
-          <h1 className="mt-4 text-2xl font-bold">{displayName || username}</h1>
+          <NameEditor initialName={displayName} username={username} />
           {username && <p className="text-neutral-500">@{username}</p>}
           {since && <p className="mt-1 text-xs text-neutral-400">No Mordomia desde {since}</p>}
         </section>
@@ -221,6 +221,83 @@ function AvatarPicker({ userId, username, initialUrl }: { userId: string; userna
         </button>
       )}
     </div>
+  );
+}
+
+function NameEditor({ initialName, username }: { initialName: string | null; username: string | null }) {
+  const [name, setName] = useState(initialName);
+  const [draft, setDraft] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, startSaving] = useTransition();
+
+  function save() {
+    startSaving(async () => {
+      const result = await saveDisplayName(draft);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setName(result.displayName);
+      setDraft(null);
+    });
+  }
+
+  if (draft === null) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(name ?? "");
+          setError(null);
+        }}
+        aria-label="Mudar o nome"
+        className="group mt-4 flex items-center gap-2 rounded-full px-3 py-1 transition hover:bg-white/70 active:scale-95"
+      >
+        <h1 className="text-2xl font-bold">{name || username}</h1>
+        <span aria-hidden="true" className="text-base opacity-60 transition group-hover:opacity-100">
+          ✏️
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        save();
+      }}
+      className="mt-4 flex w-full max-w-xs flex-col items-center gap-2"
+    >
+      <input
+        autoFocus
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => event.key === "Escape" && setDraft(null)}
+        maxLength={DISPLAY_NAME_MAX}
+        aria-label="Nome"
+        placeholder={username ?? "O teu nome"}
+        className="w-full rounded-2xl border-2 border-accent bg-white px-4 py-2 text-center text-xl font-bold outline-none"
+      />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setDraft(null)}
+          className="h-9 rounded-full border-2 border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={saving}
+          className="h-9 rounded-full bg-accent px-5 text-sm font-semibold text-white shadow disabled:opacity-60"
+        >
+          {saving ? "A guardar…" : "Guardar"}
+        </button>
+      </div>
+      <p className="text-xs text-neutral-400">O @nome de utilizador não muda.</p>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </form>
   );
 }
 
