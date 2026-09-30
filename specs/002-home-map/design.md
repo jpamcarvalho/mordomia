@@ -187,6 +187,10 @@ Order top to bottom (still one `"use client"` component, same `useActionState` w
 | `src/lib/profile/avatar.ts` | `avatarInitial(username: string \| null): string` → first character upper-cased, `"?"` when null/empty. |
 
 ## Test plan
+> **Scope change (Decision #27, 2026-09-30):** the Playwright rows for the home and theme (Task 5:
+> `helpers/maps.ts`, `home.spec.ts`, `theme.spec.ts`) are **dropped**. Tests written before the decision stay
+> (Tasks 1–3 tests and `src/components/home/home-map.test.tsx`); no new tests are written in 002.
+
 E2E never reaches Google: every home test calls `blockGoogleMaps(page)` (aborts `maps.googleapis.com` /
 `maps.gstatic.com`), so the map always ends in the AC-11 error state whether or not a key is present locally
 (no key → config `null`; key → aborted script → `APIProvider` `onError`). Behaviour that needs a rendered Google map

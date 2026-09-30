@@ -52,7 +52,7 @@
   - Done when: `npm test` passes with every Vitest row of the test plan for these files, and `npm run typecheck`,
     `npm run lint` pass.
 
-- [ ] **Task 4 — Home map screen (splash, map, dot, notice, recenter, avatar menu, error)**
+- [x] **Task 4 — Home map screen (splash, map, dot, notice, recenter, avatar menu, error)**
   - Files: `src/components/spinner.tsx`, `src/components/splash.tsx`, `src/app/loading.tsx`, `src/app/page.tsx`,
     `src/components/home/home-map.tsx`, `src/components/home/map-view.tsx`, `src/components/home/user-dot.tsx`,
     `src/components/home/recenter-button.tsx`, `src/components/home/location-notice.tsx`,
@@ -72,7 +72,8 @@
     tests/e2e/places.spec.ts` passes; and `npm run dev` without a Maps key shows splash → "We couldn't load the map."
     with a working avatar menu.
 
-- [ ] **Task 5 — Home and theme end-to-end tests**
+- [x] ~~**Task 5 — Home and theme end-to-end tests**~~ — **Dropped** (Decision #27: no new tests from Task 4 on;
+  AC-1…AC-4, AC-10, AC-11 have no e2e coverage in 002 beyond the Vitest tests already written).
   - Files: `tests/e2e/helpers/maps.ts` (new: `blockGoogleMaps`, `trackGeolocation`), `tests/e2e/home.spec.ts` (new),
     `tests/e2e/theme.spec.ts` (new)
   - AC: AC-1, AC-2, AC-3, AC-4, AC-10, AC-11

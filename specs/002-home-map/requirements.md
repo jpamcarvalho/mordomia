@@ -109,3 +109,5 @@ polished login/sign-up page. No data or database changes: this feature is UI onl
 | 24 | (architect OQ-2) Tapping Google's own place icons | Disabled (`clickableIcons={false}`) | 2026-09-30 |
 | 25 | (architect OQ-3) Recenter reading fails | Keep map and dot at the last successful location if there was one; move to Porto zoom 13 only if there never was one; the AC-6 notice shows in both cases | 2026-09-30 |
 | 26 | (architect OQ-4) Accessible names | Avatar "Account menu", recenter "Recenter map", notice ✕ "Dismiss", password toggle visible "Show"/"Hide" with aria-labels "Show password"/"Hide password" | 2026-09-30 |
+| 27 | (implementer, build) User said "do not write tests in this feature" — what happens to tests? | No NEW tests from Task 4 on: keep tests already written (incl. `home-map.test.tsx`), drop Task 5 (home/theme e2e) | 2026-09-30 |
+| 28 | (implementer, build) Dev server on :3000 blocks Playwright's own server (Next 16 dev lock) | Main session stops :3000 before the full check (Task 6) and restarts it afterwards | 2026-09-30 |

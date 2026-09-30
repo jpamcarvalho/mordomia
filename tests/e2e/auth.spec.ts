@@ -31,12 +31,16 @@ test.describe("with a confirmed user", () => {
     await deleteUser(user.id);
   });
 
-  test("AC-4, AC-5: sign in greets by @username, sign out returns to /login", async ({ page }) => {
+  test("AC-4, AC-5: sign in shows @username in the account menu, sign out returns to /login", async ({
+    page,
+  }) => {
     await signIn(page, user);
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByText(`Hi @${user.username} 👋`)).toBeVisible();
 
-    await page.getByRole("button", { name: "Sign out" }).click();
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await expect(page.getByRole("menu")).toContainText(`@${user.username}`);
+
+    await page.getByRole("menuitem", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/login$/);
 
     // The session is gone: the home page redirects again.
