@@ -17,7 +17,7 @@ import {
 } from "@/lib/map/location";
 import { homePhase, type MapStatus } from "@/lib/map/phase";
 import type { SelectedPlace } from "@/lib/map/restaurants";
-import { AvatarMenu } from "./avatar-menu";
+import { AvatarLink } from "./avatar-link";
 import { FlyingCutlery } from "./flying-cutlery";
 import { ListFab } from "./list-fab";
 import { ListPanel } from "./list-panel";
@@ -31,12 +31,15 @@ import { SearchModal } from "./search-modal";
 import { PlaceDialog } from "./place-dialog";
 import { Toast } from "./toast";
 
-type Props = { username: string | null; initialList: ListItem[]; initialCustomPlaces: SelectedPlace[] };
+type Props = {
+  username: string | null;
+  avatarUrl: string | null;
+  initialList: ListItem[]; initialCustomPlaces: SelectedPlace[] };
 
 const TOAST_MS = 2500;
 
 // Home screen orchestrator (design.md → HomeMap state machine; AC-3…AC-12).
-export function HomeMap({ username, initialList, initialCustomPlaces }: Props) {
+export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces }: Props) {
   const [initialView, setInitialView] = useState<LocationState | null>(null);
   const [location, setLocation] = useState<LocationState | null>(null);
   const [mapStatus, setMapStatus] = useState<MapStatus>("loading");
@@ -187,7 +190,7 @@ export function HomeMap({ username, initialList, initialCustomPlaces }: Props) {
         return;
       }
       setList((items) => [result.item, ...items.filter((item) => item.entryId !== result.item.entryId)]);
-      setToast(status === "want" ? `${place.name}: Quero ir!` : `${place.name} adicionado à minha lista`);
+      setToast(status === "want" ? `🤤 ${place.name} está no Quero ir!` : `⭐ ${place.name} adicionado à tua lista`);
       setSelected(null);
       if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         setFlight({ x: origin.left + origin.width / 2, y: origin.top + origin.height / 2 });
@@ -306,7 +309,7 @@ export function HomeMap({ username, initialList, initialCustomPlaces }: Props) {
       {flight && <FlyingCutlery from={flight} target={fabRef} onDone={() => setFlight(null)} />}
       {toast && <Toast message={toast} />}
       {phase === "error" && <MapError />}
-      {phase !== "splash" && !placing && <AvatarMenu username={username} />}
+      {phase !== "splash" && !placing && <AvatarLink username={username} avatarUrl={avatarUrl} />}
       {phase === "splash" && <Splash />}
     </main>
   );
