@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { addToList, removeFromList } from "@/app/(home)/actions";
+import { addToList, createRestaurant, removeFromList } from "@/app/(home)/actions";
 import { Splash } from "@/components/splash";
 import type { EntryDetails } from "@/lib/list/details";
+import { PIN_RANGE_M } from "@/lib/list/new-restaurant";
 import type { ListItem, ListStatus } from "@/lib/list/types";
 import {
   requestLocation,
   resolveInitialView,
   resolveRecenter,
   type Camera,
+  type LatLng,
   type LocationResult,
   type LocationState,
 } from "@/lib/map/location";
@@ -22,17 +24,19 @@ import { ListPanel } from "./list-panel";
 import { LocationNotice } from "./location-notice";
 import { MapError } from "./map-error";
 import { MapView } from "./map-view";
+import { NewRestaurantModal, type RestaurantDraft } from "./new-restaurant-modal";
+import { PinPlacement } from "./pin-placement";
 import { RecenterButton } from "./recenter-button";
 import { SearchModal } from "./search-modal";
 import { PlaceDialog } from "./place-dialog";
 import { Toast } from "./toast";
 
-type Props = { username: string | null; initialList: ListItem[] };
+type Props = { username: string | null; initialList: ListItem[]; initialCustomPlaces: SelectedPlace[] };
 
 const TOAST_MS = 2500;
 
 // Home screen orchestrator (design.md → HomeMap state machine; AC-3…AC-12).
-export function HomeMap({ username, initialList }: Props) {
+export function HomeMap({ username, initialList, initialCustomPlaces }: Props) {
   const [initialView, setInitialView] = useState<LocationState | null>(null);
   const [location, setLocation] = useState<LocationState | null>(null);
   const [mapStatus, setMapStatus] = useState<MapStatus>("loading");
@@ -44,6 +48,15 @@ export function HomeMap({ username, initialList }: Props) {
   const [fabOpen, setFabOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  // Restaurants added by users (shared), drawn on the map next to the OpenStreetMap ones.
+  const [customPlaces, setCustomPlaces] = useState<SelectedPlace[]>(initialCustomPlaces);
+  // Adding a restaurant — step 1: the form (draft = its values; null = closed).
+  const [draft, setDraft] = useState<RestaurantDraft | null>(null);
+  // Step 2: placing the pin near the user's position. `pin` follows the map center.
+  const [placing, setPlacing] = useState<(RestaurantDraft & { gps: LatLng }) | null>(null);
+  const [placement, setPlacement] = useState<{ gps: LatLng; radiusM: number } | null>(null);
+  const [pin, setPin] = useState<LatLng | null>(null);
+  const [creating, startCreating] = useTransition();
   const [removing, setRemoving] = useState<string | null>(null);
   const [adding, startAdding] = useTransition();
   const [pendingStatus, setPendingStatus] = useState<ListStatus | null>(null);
@@ -110,6 +123,56 @@ export function HomeMap({ username, initialList }: Props) {
 
   const closeFab = useCallback(() => setFabOpen(false), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
+  const closeNew = useCallback(() => setDraft(null), []);
+
+  function openNew(name: string) {
+    setFabOpen(false);
+    setSearchOpen(false);
+    setListOpen(false);
+    setSelected(null);
+    setDraft({ name, kind: "restaurant" });
+  }
+
+  function startPlacing(next: RestaurantDraft & { gps: LatLng }) {
+    setDraft(null);
+    setPlacing(next);
+    setPin(next.gps);
+    setPlacement({ gps: next.gps, radiusM: PIN_RANGE_M });
+  }
+
+  function stopPlacing() {
+    setPlacing(null);
+    setPlacement(null);
+    setPin(null);
+  }
+
+  function create(origin: DOMRect) {
+    if (!placing || !pin) return;
+    const restaurant = {
+      name: placing.name,
+      kind: placing.kind,
+      lat: pin.lat,
+      lng: pin.lng,
+      gpsLat: placing.gps.lat,
+      gpsLng: placing.gps.lng,
+    };
+    startCreating(async () => {
+      const result = await createRestaurant(restaurant);
+      if (!result.ok) {
+        setToast(result.error);
+        return;
+      }
+      const { place, existing } = result;
+      if (!existing) setCustomPlaces((places) => [...places, place]);
+      stopPlacing();
+      setToast(existing ? `${place.name} is already on the map` : `${place.name} added to the map`);
+      if (!existing && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setFlight({ x: origin.left + origin.width / 2, y: origin.top + origin.height / 2 });
+      }
+      // Open it so it can go straight onto a list.
+      setSelected(place);
+    });
+  }
   const selectedItem = selected ? (list.find((item) => item.placeId === selected.id) ?? null) : null;
 
   function add() {
@@ -158,6 +221,9 @@ export function HomeMap({ username, initialList }: Props) {
           userPosition={location.userPosition}
           camera={camera}
           selected={selected}
+          customPlaces={customPlaces}
+          placement={placement}
+          onPlacementMove={setPin}
           onLoad={onLoad}
           onError={fail}
           onSelect={(place) => {
@@ -179,7 +245,7 @@ export function HomeMap({ username, initialList }: Props) {
           onClose={() => setSelected(null)}
         />
       )}
-      {phase === "map" && (
+      {phase === "map" && !placing && (
         <div
           className="absolute right-[calc(env(safe-area-inset-right)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] z-20 flex flex-col items-end gap-3"
         >
@@ -191,6 +257,7 @@ export function HomeMap({ username, initialList }: Props) {
             count={list.length}
             onAdd={add}
             buttonRef={fabRef}
+            onNewRestaurant={() => openNew("")}
             onSearch={() => {
               setFabOpen(false);
               setListOpen(false);
@@ -219,13 +286,33 @@ export function HomeMap({ username, initialList }: Props) {
             setSearchOpen(false);
             setSelected({ id: result.id, name: result.name, kind: result.kind, lat: result.lat, lng: result.lng });
           }}
+          onAddNew={openNew}
           onClose={closeSearch}
+        />
+      )}
+      {phase === "map" && draft !== null && (
+        <NewRestaurantModal initial={draft} onNext={startPlacing} onClose={closeNew} />
+      )}
+      {phase === "map" && placing && pin && (
+        <PinPlacement
+          name={placing.name}
+          kind={placing.kind}
+          gps={placing.gps}
+          pin={pin}
+          saving={creating}
+          onConfirm={create}
+          onRecenter={() => setPlacement({ gps: placing.gps, radiusM: PIN_RANGE_M })}
+          onBack={() => {
+            const { name, kind } = placing;
+            stopPlacing();
+            setDraft({ name, kind });
+          }}
         />
       )}
       {flight && <FlyingCutlery from={flight} target={fabRef} onDone={() => setFlight(null)} />}
       {toast && <Toast message={toast} />}
       {phase === "error" && <MapError />}
-      {phase !== "splash" && <AvatarMenu username={username} />}
+      {phase !== "splash" && !placing && <AvatarMenu username={username} />}
       {phase === "splash" && <Splash />}
     </main>
   );

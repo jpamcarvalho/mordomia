@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { kindLabel, toSelectedPlace } from "./restaurants";
+import { customPlaceId, customRestaurantId, kindLabel, toSelectedPlace } from "./restaurants";
 
 const AT = { lat: 41.15, lng: -8.61 };
 
@@ -32,5 +32,18 @@ describe("kindLabel", () => {
   it("labels the classes", () => {
     expect(kindLabel("cafe")).toBe("Café");
     expect(kindLabel("beer")).toBe("Pub");
+  });
+});
+
+describe("custom place ids", () => {
+  it("round-trips a restaurant id and ignores map ids", () => {
+    expect(customPlaceId("abc")).toBe("custom:abc");
+    expect(customRestaurantId("custom:abc")).toBe("abc");
+    expect(customRestaurantId("61816551851")).toBeNull();
+  });
+
+  it("uses properties.placeId for user-added features", () => {
+    const place = toSelectedPlace({ id: 3, properties: { placeId: "custom:abc", name: "Tasca", class: "restaurant" } }, AT);
+    expect(place?.id).toBe("custom:abc");
   });
 });

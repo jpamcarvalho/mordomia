@@ -9,6 +9,8 @@ type Props = {
   // Results are biased towards this position (the user, or the map's start).
   near: LatLng;
   onPick: (result: SearchResult) => void;
+  // "Can't find it?" → add a new restaurant with this name.
+  onAddNew: (name: string) => void;
   onClose: () => void;
 };
 
@@ -17,7 +19,7 @@ const DEBOUNCE_MS = 300;
 type Status = "idle" | "loading" | "done" | "error";
 
 // Search restaurants by name; picking one takes the map there.
-export function SearchModal({ near, onPick, onClose }: Props) {
+export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [status, setStatus] = useState<Status>("idle");
@@ -110,6 +112,19 @@ export function SearchModal({ near, onPick, onClose }: Props) {
                 </li>
               ))}
             </ul>
+          )}
+          {!tooShort && (status === "done" || status === "error") && (
+            <button
+              type="button"
+              onClick={() => onAddNew(query.trim())}
+              className="flex w-full items-center gap-3 border-t border-neutral-100 bg-accent/5 px-4 py-4 text-left"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-lg text-white">+</span>
+              <span className="min-w-0">
+                <span className="block text-sm text-neutral-600">Can&apos;t find it?</span>
+                <span className="block truncate font-semibold text-accent">Add “{query.trim()}” to the map</span>
+              </span>
+            </button>
           )}
         </div>
       </div>

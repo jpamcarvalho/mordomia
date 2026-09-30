@@ -3,14 +3,23 @@
 import { createClient } from "@/lib/supabase/server";
 import { parseDetails } from "@/lib/list/details";
 import { isListStatus, type ListItem, type ListStatus } from "@/lib/list/types";
-import { isFoodClass, type SelectedPlace } from "@/lib/map/restaurants";
+import { DUPLICATE_RADIUS_M, distanceMeters, parseNewRestaurant, type NewRestaurant } from "@/lib/list/new-restaurant";
+import { normalizeName } from "@/lib/search/photon";
+import { customPlaceId, customRestaurantId, isFoodClass, type SelectedPlace } from "@/lib/map/restaurants";
 
 export type AddResult = { ok: true; item: ListItem } | { ok: false; error: string };
 
 const UNIQUE_VIOLATION = "23505";
 
 // Finds or creates the shared restaurant row for a map place (RLS: any signed-in user may insert).
+// User-added places already have a row.
 async function restaurantIdFor(supabase: Awaited<ReturnType<typeof createClient>>, place: SelectedPlace) {
+  const customId = customRestaurantId(place.id);
+  if (customId) {
+    const { data } = await supabase.from("restaurants").select("id").eq("id", customId).eq("user_added", true).maybeSingle();
+    return (data?.id as string | undefined) ?? null;
+  }
+
   const find = () => supabase.from("restaurants").select("id").eq("osm_id", place.id).maybeSingle();
 
   const existing = await find();
@@ -89,4 +98,52 @@ export async function removeFromList(entryId: string): Promise<{ ok: boolean }> 
   // RLS limits deletes to the user's own entries.
   const { error } = await supabase.from("entries").delete().eq("id", entryId);
   return { ok: !error };
+}
+
+export type CreateResult =
+  | { ok: true; place: SelectedPlace; existing: boolean }
+  | { ok: false; error: string };
+
+// Adds a restaurant that is not on the map, at the pin the user placed within PIN_RANGE_M of their position.
+// Shared with every signed-in user.
+// The same name already added within DUPLICATE_RADIUS_M is returned instead of creating a copy.
+export async function createRestaurant(input: Partial<NewRestaurant>): Promise<CreateResult> {
+  const restaurant = parseNewRestaurant(input);
+  if (!restaurant) return { ok: false, error: "Add a name and a type, and keep the pin within 50 m of you." };
+  const row = { name: restaurant.name, kind: restaurant.kind, lat: restaurant.lat, lng: restaurant.lng };
+
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims?.claims) return { ok: false, error: "Not signed in." };
+
+  // ~0.002° ≈ 200 m: candidates for the duplicate check.
+  const { data: nearby } = await supabase
+    .from("restaurants")
+    .select("id, name, kind, lat, lng")
+    .eq("user_added", true)
+    .gte("lat", restaurant.lat - 0.002)
+    .lte("lat", restaurant.lat + 0.002)
+    .gte("lng", restaurant.lng - 0.003)
+    .lte("lng", restaurant.lng + 0.003);
+  const duplicate = (nearby ?? []).find(
+    (row) =>
+      normalizeName(row.name) === normalizeName(restaurant.name) &&
+      distanceMeters(row as { lat: number; lng: number }, restaurant) <= DUPLICATE_RADIUS_M,
+  );
+  if (duplicate && isFoodClass(duplicate.kind)) {
+    return {
+      ok: true,
+      existing: true,
+      place: { id: customPlaceId(duplicate.id), name: duplicate.name, kind: duplicate.kind, lat: duplicate.lat, lng: duplicate.lng },
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("restaurants")
+    .insert({ ...row, user_added: true })
+    .select("id")
+    .single();
+  if (error || !data) return { ok: false, error: "Couldn't add the restaurant." };
+
+  return { ok: true, existing: false, place: { id: customPlaceId(data.id as string), ...row } };
 }

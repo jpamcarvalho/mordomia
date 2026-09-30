@@ -11,6 +11,7 @@ type Props = {
   onAdd: () => void;
   onShowList: () => void;
   onSearch: () => void;
+  onNewRestaurant: () => void;
   // The round button itself (target of the "added" animation).
   buttonRef?: Ref<HTMLButtonElement>;
 };
@@ -32,7 +33,7 @@ function MenuItem({ icon, label, onClick, delayMs, badge }: ItemProps) {
       type="button"
       onClick={onClick}
       style={{ animationDelay: `${delayMs}ms` }}
-      className="flex h-14 w-48 items-center gap-3 rounded-2xl bg-white pr-4 pl-2.5 text-left text-[15px] font-semibold text-foreground shadow-lg ring-1 ring-black/5 transition-transform active:scale-95 motion-safe:animate-[fork-pop_200ms_cubic-bezier(0.2,0.9,0.3,1.2)_both]"
+      className="flex h-14 w-52 items-center gap-3 rounded-2xl bg-white pr-4 pl-2.5 text-left text-[15px] font-semibold text-foreground shadow-lg ring-1 ring-black/5 transition-transform active:scale-95 motion-safe:animate-[fork-pop_200ms_cubic-bezier(0.2,0.9,0.3,1.2)_both]"
     >
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
         {icon}
@@ -48,7 +49,17 @@ function MenuItem({ icon, label, onClick, delayMs, badge }: ItemProps) {
 }
 
 // The fork menu: round knife-and-fork button (bottom-right). Tapping it pops Search, My list and Add up above it.
-export function ListFab({ open, onToggle, onClose, count, onAdd, onShowList, onSearch, buttonRef }: Props) {
+export function ListFab({
+  open,
+  onToggle,
+  onClose,
+  count,
+  onAdd,
+  onShowList,
+  onSearch,
+  onNewRestaurant,
+  buttonRef,
+}: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,7 +89,8 @@ export function ListFab({ open, onToggle, onClose, count, onAdd, onShowList, onS
             className="fixed inset-0 -z-10 bg-black/25 motion-safe:animate-[fade-in_150ms_ease-out]"
           />
           <div role="menu" aria-label="List" className="flex flex-col items-end gap-2.5">
-            <MenuItem icon={<MagnifierIcon className="size-5" />} label="Search" onClick={onSearch} delayMs={80} />
+            <MenuItem icon={<MagnifierIcon className="size-5" />} label="Search" onClick={onSearch} delayMs={120} />
+            <MenuItem icon={<PinPlusIcon />} label="New restaurant" onClick={onNewRestaurant} delayMs={80} />
             <MenuItem icon={<ListIcon />} label="My list" onClick={onShowList} delayMs={40} badge={count} />
             <MenuItem icon={<PlusIcon />} label="Add" onClick={onAdd} delayMs={0} />
           </div>
@@ -115,6 +127,15 @@ function PlusIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-5">
       <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+function PinPlusIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-5">
+      <path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" />
+      <path d="M12 6.5v6M9 9.5h6" />
     </svg>
   );
 }

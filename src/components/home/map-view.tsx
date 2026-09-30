@@ -5,9 +5,19 @@ import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import { MAP_STYLE_URL, toMapLibreZoom } from "@/lib/map/config";
 import type { Camera, LatLng, LocationState } from "@/lib/map/location";
+import { circleRing } from "@/lib/list/new-restaurant";
 import { FOOD_CLASSES, toSelectedPlace, type SelectedPlace } from "@/lib/map/restaurants";
 
 const FOOD_LAYER = "food-poi";
+// Restaurants added by users (not in OpenStreetMap), from our database.
+const CUSTOM_SOURCE = "custom-places";
+const CUSTOM_LAYER = "custom-poi";
+const PLACE_LAYERS = [CUSTOM_LAYER, FOOD_LAYER];
+// Allowed area while placing a new restaurant's pin.
+const RANGE_SOURCE = "pin-range";
+const RANGE_LAYERS = ["pin-range-fill", "pin-range-line"];
+// Close enough to pick the right door (MapLibre scale).
+const PLACEMENT_ZOOM = 18;
 // Extra pixels around a tap so small pins are easy to hit on a phone.
 const TAP_SLOP = 12;
 // Served from public/ (scripts/copy-maplibre-worker.mjs); the bundled default URL does not resolve.
@@ -20,10 +30,32 @@ type Props = {
   // Latest camera move requested by HomeMap (recenter, late location); a new object means a new move.
   camera: Camera | null;
   selected: SelectedPlace | null;
+  customPlaces: SelectedPlace[];
+  // Placing a new restaurant: camera goes to gps and the range circle is drawn. A new object re-centers (Reset).
+  placement: { gps: LatLng; radiusM: number } | null;
+  // The pin is the map center; reported on every move while placing.
+  onPlacementMove: (center: LatLng) => void;
   onLoad: () => void;
   onError: () => void;
   onSelect: (place: SelectedPlace | null) => void;
 };
+
+const PLACE_LAYOUT = {
+  "icon-image": ["get", "class"],
+  "text-field": ["coalesce", ["get", "name:latin"], ["get", "name"]],
+  "text-font": ["Noto Sans Regular"],
+  "text-size": 11,
+  "text-anchor": "top",
+  "text-offset": [0, 0.8],
+  "text-max-width": 8,
+  "text-optional": true,
+} satisfies maplibregl.SymbolLayerSpecification["layout"];
+
+const PLACE_PAINT = {
+  "text-color": "#8a4b2a",
+  "text-halo-color": "#ffffff",
+  "text-halo-width": 1.2,
+} satisfies maplibregl.SymbolLayerSpecification["paint"];
 
 function addFoodLayer(map: maplibregl.Map) {
   map.addLayer({
@@ -33,22 +65,58 @@ function addFoodLayer(map: maplibregl.Map) {
     "source-layer": "poi",
     minzoom: 14,
     filter: ["match", ["get", "class"], [...FOOD_CLASSES], true, false],
-    layout: {
-      "icon-image": ["get", "class"],
-      "text-field": ["coalesce", ["get", "name:latin"], ["get", "name"]],
-      "text-font": ["Noto Sans Regular"],
-      "text-size": 11,
-      "text-anchor": "top",
-      "text-offset": [0, 0.8],
-      "text-max-width": 8,
-      "text-optional": true,
-    },
-    paint: {
-      "text-color": "#8a4b2a",
-      "text-halo-color": "#ffffff",
-      "text-halo-width": 1.2,
-    },
+    layout: PLACE_LAYOUT,
+    paint: PLACE_PAINT,
   });
+}
+
+function customPlacesData(places: SelectedPlace[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: places.map((place) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [place.lng, place.lat] },
+      properties: { placeId: place.id, name: place.name, class: place.kind },
+    })),
+  };
+}
+
+function addCustomLayer(map: maplibregl.Map, places: SelectedPlace[]) {
+  map.addSource(CUSTOM_SOURCE, { type: "geojson", data: customPlacesData(places) });
+  map.addLayer({
+    id: CUSTOM_LAYER,
+    type: "symbol",
+    source: CUSTOM_SOURCE,
+    minzoom: 13,
+    // Drawn before the tile pins where they collide: users added these on purpose.
+    layout: { ...PLACE_LAYOUT, "symbol-sort-key": 0 },
+    paint: PLACE_PAINT,
+  });
+}
+
+function rangeData(center: LatLng, radiusM: number): GeoJSON.Feature {
+  return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [circleRing(center, radiusM)] } };
+}
+
+function showRange(map: maplibregl.Map, center: LatLng, radiusM: number) {
+  const source = map.getSource(RANGE_SOURCE) as maplibregl.GeoJSONSource | undefined;
+  if (source) {
+    source.setData(rangeData(center, radiusM));
+    return;
+  }
+  map.addSource(RANGE_SOURCE, { type: "geojson", data: rangeData(center, radiusM) });
+  map.addLayer({ id: RANGE_LAYERS[0], type: "fill", source: RANGE_SOURCE, paint: { "fill-color": "#c2410c", "fill-opacity": 0.08 } });
+  map.addLayer({
+    id: RANGE_LAYERS[1],
+    type: "line",
+    source: RANGE_SOURCE,
+    paint: { "line-color": "#c2410c", "line-width": 2, "line-dasharray": [2, 2] },
+  });
+}
+
+function hideRange(map: maplibregl.Map) {
+  for (const layer of RANGE_LAYERS) if (map.getLayer(layer)) map.removeLayer(layer);
+  if (map.getSource(RANGE_SOURCE)) map.removeSource(RANGE_SOURCE);
 }
 
 function dotElement() {
@@ -64,6 +132,9 @@ export function MapView({
   userPosition,
   camera,
   selected,
+  customPlaces,
+  placement,
+  onPlacementMove,
   onLoad,
   onError,
   onSelect,
@@ -73,9 +144,17 @@ export function MapView({
   const dotRef = useRef<maplibregl.Marker | null>(null);
   const pinRef = useRef<maplibregl.Marker | null>(null);
   // Callbacks change identity across renders; the map listeners read the latest ones.
-  const handlers = useRef({ onLoad, onError, onSelect });
+  const handlers = useRef({ onLoad, onError, onSelect, onPlacementMove });
+  const placingRef = useRef(false);
+  // Latest user-added places, for the style.load handler that adds the layer.
+  const customRef = useRef(customPlaces);
   useEffect(() => {
-    handlers.current = { onLoad, onError, onSelect };
+    customRef.current = customPlaces;
+    const source = mapRef.current?.getSource(CUSTOM_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    source?.setData(customPlacesData(customPlaces));
+  }, [customPlaces]);
+  useEffect(() => {
+    handlers.current = { onLoad, onError, onSelect, onPlacementMove };
   });
 
   useEffect(() => {
@@ -99,6 +178,7 @@ export function MapView({
     // Added before the first tiles are parsed: workers only decode source layers the style uses.
     map.on("style.load", () => {
       if (!map.getLayer(FOOD_LAYER)) addFoodLayer(map);
+      if (!map.getLayer(CUSTOM_LAYER)) addCustomLayer(map, customRef.current);
     });
     map.on("load", () => {
       loaded = true;
@@ -109,15 +189,22 @@ export function MapView({
       if (!loaded) handlers.current.onError();
     });
 
+    // While placing a pin the map is only moved, never tapped to select places.
+    map.on("move", () => {
+      if (!placingRef.current) return;
+      const { lat, lng } = map.getCenter();
+      handlers.current.onPlacementMove({ lat, lng });
+    });
+
     map.on("click", (event) => {
-      if (!map.getLayer(FOOD_LAYER)) return;
+      if (placingRef.current || !map.getLayer(FOOD_LAYER)) return;
       const { x, y } = event.point;
       const [feature] = map.queryRenderedFeatures(
         [
           [x - TAP_SLOP, y - TAP_SLOP],
           [x + TAP_SLOP, y + TAP_SLOP],
         ],
-        { layers: [FOOD_LAYER] },
+        { layers: PLACE_LAYERS },
       );
       if (!feature) {
         handlers.current.onSelect(null);
@@ -129,8 +216,10 @@ export function MapView({
           : event.lngLat;
       handlers.current.onSelect(toSelectedPlace(feature, at));
     });
-    map.on("mouseenter", FOOD_LAYER, () => (map.getCanvas().style.cursor = "pointer"));
-    map.on("mouseleave", FOOD_LAYER, () => (map.getCanvas().style.cursor = ""));
+    for (const layer of PLACE_LAYERS) {
+      map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
+    }
 
     return () => {
       map.remove();
@@ -141,6 +230,24 @@ export function MapView({
     // The map is created once; initialView is only its starting point.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    placingRef.current = placement !== null;
+    if (!map) return;
+    if (!placement) {
+      hideRange(map);
+      return;
+    }
+    showRange(map, placement.gps, placement.radiusM);
+    // No padding: the pin drawn in the middle of the screen must be the map center.
+    map.easeTo({
+      center: [placement.gps.lng, placement.gps.lat],
+      zoom: PLACEMENT_ZOOM,
+      padding: { top: 0, bottom: 0, left: 0, right: 0 },
+      duration: 600,
+    });
+  }, [placement]);
 
   useEffect(() => {
     const map = mapRef.current;
