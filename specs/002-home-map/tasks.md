@@ -42,7 +42,7 @@
   - Done when: `npm run typecheck`, `npm run lint` pass, and `npx playwright test tests/e2e/login.spec.ts
     tests/e2e/auth.spec.ts tests/e2e/places.spec.ts` passes (the existing 000 tests prove AC-17).
 
-- [ ] **Task 3 — Pure map / location / avatar logic**
+- [x] **Task 3 — Pure map / location / avatar logic**
   - Files: `src/lib/map/config.ts`, `src/lib/map/config.test.ts`, `src/lib/map/location.ts`,
     `src/lib/map/location.test.ts`, `src/lib/map/phase.ts`, `src/lib/map/phase.test.ts`, `src/lib/profile/avatar.ts`,
     `src/lib/profile/avatar.test.ts`
