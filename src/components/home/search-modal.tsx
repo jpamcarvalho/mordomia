@@ -4,6 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import type { LatLng } from "@/lib/map/location";
 import { kindsLabel, placeKinds } from "@/lib/map/restaurants";
 import type { SearchResult } from "@/lib/search/photon";
+import { COUNTRIES, findCountry } from "@/lib/search/countries";
+
+// The chosen country is remembered on this device ("" = any country, near you).
+const COUNTRY_KEY = "mordomia.searchCountry";
+
+function savedCountry(): string {
+  try {
+    return findCountry(localStorage.getItem(COUNTRY_KEY))?.code ?? "";
+  } catch {
+    return "";
+  }
+}
 
 type Props = {
   // Results are biased towards this position (the user, or the map's start).
@@ -23,6 +35,18 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [status, setStatus] = useState<Status>("idle");
+  const [country, setCountry] = useState(savedCountry);
+
+  function chooseCountry(code: string) {
+    setCountry(code);
+    try {
+      if (code) localStorage.setItem(COUNTRY_KEY, code);
+      else localStorage.removeItem(COUNTRY_KEY);
+    } catch {
+      // Private mode / blocked storage: the choice just is not remembered.
+    }
+    inputRef.current?.focus();
+  }
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -42,6 +66,7 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
       setStatus("loading");
       try {
         const params = new URLSearchParams({ q, lat: String(near.lat), lng: String(near.lng) });
+        if (country) params.set("country", country);
         const res = await fetch(`/api/search?${params}`, { signal: controller.signal });
         if (!res.ok) throw new Error(String(res.status));
         const body = (await res.json()) as { results: SearchResult[] };
@@ -55,7 +80,7 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, near.lat, near.lng]);
+  }, [query, near.lat, near.lng, country]);
 
   const tooShort = query.trim().length < 2;
 
@@ -89,6 +114,38 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
             ✕
           </button>
         </div>
+        <div className="flex items-center gap-2 border-b border-neutral-100 px-4 py-2">
+          <span className="text-sm text-neutral-500">Onde:</span>
+          <div className="relative">
+            <select
+              aria-label="País"
+              value={country}
+              onChange={(event) => chooseCountry(event.target.value)}
+              className={`h-9 appearance-none rounded-full py-0 pr-8 pl-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent/40 ${
+                country ? "bg-accent text-white" : "bg-neutral-100 text-neutral-700"
+              }`}
+            >
+              <option value="">🌍 Qualquer país (perto de ti)</option>
+              {COUNTRIES.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.flag} {option.name}
+                </option>
+              ))}
+            </select>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 ${country ? "text-white" : "text-neutral-500"}`}
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+        </div>
         <div className="overflow-y-auto">
           {tooShort ? (
             <p className="px-4 py-5 text-sm text-neutral-500">Escreve pelo menos 2 letras.</p>
@@ -97,7 +154,9 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
           ) : status === "loading" && results.length === 0 ? (
             <p className="px-4 py-5 text-sm text-neutral-500">A pesquisar…</p>
           ) : status === "done" && results.length === 0 ? (
-            <p className="px-4 py-5 text-sm text-neutral-600">Nenhum restaurante encontrado.</p>
+            <p className="px-4 py-5 text-sm text-neutral-600">
+              Nenhum restaurante encontrado{country ? ` em ${findCountry(country)?.name}` : ""}.
+            </p>
           ) : (
             <ul aria-busy={status === "loading"}>
               {results.map((result) => (
