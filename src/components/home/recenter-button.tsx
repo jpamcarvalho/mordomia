@@ -5,7 +5,7 @@ export function RecenterButton({ busy, onClick }: { busy: boolean; onClick: () =
   return (
     <button
       type="button"
-      aria-label="Recenter map"
+      aria-label="Recentrar o mapa"
       disabled={busy}
       aria-busy={busy}
       onClick={onClick}

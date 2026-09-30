@@ -7,15 +7,15 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("AC-2: the submit button and the active tab use the accent color", async ({ page }) => {
-  await expect(page.getByRole("button", { name: "Sign in" })).toHaveCSS(
+  await expect(page.getByRole("button", { name: "Entrar" })).toHaveCSS(
     "background-color",
     ACCENT,
   );
-  await expect(page.getByRole("tab", { name: "Sign in" })).toHaveCSS("color", ACCENT);
+  await expect(page.getByRole("tab", { name: "Entrar" })).toHaveCSS("color", ACCENT);
 
-  await page.getByRole("tab", { name: "Sign up" }).click();
-  await expect(page.getByRole("tab", { name: "Sign up" })).toHaveCSS("color", ACCENT);
-  await expect(page.getByRole("button", { name: "Create account" })).toHaveCSS(
+  await page.getByRole("tab", { name: "Registar" }).click();
+  await expect(page.getByRole("tab", { name: "Registar" })).toHaveCSS("color", ACCENT);
+  await expect(page.getByRole("button", { name: "Criar conta" })).toHaveCSS(
     "background-color",
     ACCENT,
   );
@@ -24,7 +24,7 @@ test("AC-2: the submit button and the active tab use the accent color", async ({
 test("AC-13: the tagline is shown below the Mordomia heading", async ({ page }) => {
   const heading = page.getByRole("heading", { name: "Mordomia" });
   const tagline = page.getByText(
-    "The restaurants you went to and the ones you want to try, with friends.",
+    "Os restaurantes onde foste e os que queres experimentar, com amigos.",
   );
   await expect(heading).toBeVisible();
   await expect(tagline).toBeVisible();
@@ -36,42 +36,42 @@ test("AC-13: the tagline is shown below the Mordomia heading", async ({ page }) 
 
 test("AC-14: each field has a visible label; Username only in Sign up", async ({ page }) => {
   await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Username", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Palavra-passe", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Nome de utilizador", { exact: true })).toHaveCount(0);
 
-  await page.getByRole("tab", { name: "Sign up" }).click();
-  await expect(page.getByLabel("Username", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Registar" }).click();
+  await expect(page.getByLabel("Nome de utilizador", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Palavra-passe", { exact: true })).toBeVisible();
 });
 
 test("AC-15: Sign in / Sign up tabs switch the mode", async ({ page }) => {
   const tabs = page.getByRole("tab");
   await expect(tabs).toHaveCount(2);
-  const signInTab = page.getByRole("tab", { name: "Sign in" });
-  const signUpTab = page.getByRole("tab", { name: "Sign up" });
+  const signInTab = page.getByRole("tab", { name: "Entrar" });
+  const signUpTab = page.getByRole("tab", { name: "Registar" });
   await expect(signInTab).toHaveAttribute("aria-selected", "true");
   await expect(signUpTab).toHaveAttribute("aria-selected", "false");
 
   await signUpTab.click();
   await expect(signUpTab).toHaveAttribute("aria-selected", "true");
   await expect(signInTab).toHaveAttribute("aria-selected", "false");
-  await expect(page.getByLabel("Username", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Create account" })).toBeVisible();
+  await expect(page.getByLabel("Nome de utilizador", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Criar conta" })).toBeVisible();
 
   await expect(page.getByText("No account? Sign up")).toHaveCount(0);
   await expect(page.getByText("Have an account? Sign in")).toHaveCount(0);
 });
 
 test("AC-16: the password field has a show/hide toggle", async ({ page }) => {
-  const password = page.getByLabel("Password", { exact: true });
+  const password = page.getByLabel("Palavra-passe", { exact: true });
   await expect(password).toHaveAttribute("type", "password");
 
-  await page.getByRole("button", { name: "Show password" }).click();
+  await page.getByRole("button", { name: "Mostrar palavra-passe" }).click();
   await expect(password).toHaveAttribute("type", "text");
-  await expect(page.getByRole("button", { name: "Hide password" })).toHaveText("Hide");
+  await expect(page.getByRole("button", { name: "Esconder palavra-passe" })).toHaveText("Esconder");
 
-  await page.getByRole("button", { name: "Hide password" }).click();
+  await page.getByRole("button", { name: "Esconder palavra-passe" }).click();
   await expect(password).toHaveAttribute("type", "password");
-  await expect(page.getByRole("button", { name: "Show password" })).toHaveText("Show");
+  await expect(page.getByRole("button", { name: "Mostrar palavra-passe" })).toHaveText("Mostrar");
 });

@@ -88,17 +88,17 @@ export function ListFab({
             onClick={onClose}
             className="fixed inset-0 -z-10 bg-black/25 motion-safe:animate-[fade-in_150ms_ease-out]"
           />
-          <div role="menu" aria-label="List" className="flex flex-col items-end gap-2.5">
-            <MenuItem icon={<MagnifierIcon className="size-5" />} label="Search" onClick={onSearch} delayMs={120} />
-            <MenuItem icon={<PinPlusIcon />} label="New restaurant" onClick={onNewRestaurant} delayMs={80} />
-            <MenuItem icon={<ListIcon />} label="My list" onClick={onShowList} delayMs={40} badge={count} />
-            <MenuItem icon={<PlusIcon />} label="Add" onClick={onAdd} delayMs={0} />
+          <div role="menu" aria-label="Lista" className="flex flex-col items-end gap-2.5">
+            <MenuItem icon={<MagnifierIcon className="size-5" />} label="Pesquisar" onClick={onSearch} delayMs={120} />
+            <MenuItem icon={<PinPlusIcon />} label="Novo restaurante" onClick={onNewRestaurant} delayMs={80} />
+            <MenuItem icon={<ListIcon />} label="A minha lista" onClick={onShowList} delayMs={40} badge={count} />
+            <MenuItem icon={<PlusIcon />} label="Adicionar" onClick={onAdd} delayMs={0} />
           </div>
         </>
       )}
       <button
         type="button"
-        aria-label={open ? "Close list menu" : "Open list menu"}
+        aria-label={open ? "Fechar menu da lista" : "Abrir menu da lista"}
         aria-haspopup="menu"
         aria-expanded={open}
         ref={buttonRef}

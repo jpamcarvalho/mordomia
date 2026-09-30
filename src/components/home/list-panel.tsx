@@ -47,14 +47,14 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
     <section
       role="dialog"
       aria-modal="true"
-      aria-label="My list"
+      aria-label="A minha lista"
       className="absolute inset-0 z-40 flex flex-col bg-neutral-50 motion-safe:animate-[sheet-up_220ms_ease-out]"
     >
       <header className="bg-white px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-4 shadow-sm">
         <div className="flex items-center gap-3">
           <button
             type="button"
-            aria-label="Back to map"
+            aria-label="Voltar ao mapa"
             onClick={onClose}
             className="-ml-1 flex size-10 items-center justify-center rounded-full text-foreground hover:bg-neutral-100"
           >
@@ -63,9 +63,9 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
             </svg>
           </button>
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold">My list</h1>
+            <h1 className="text-2xl font-bold">A minha lista</h1>
             <p className="text-sm text-neutral-500">
-              {items.length === 1 ? "1 restaurant" : `${items.length} restaurants`}
+              {items.length === 1 ? "1 restaurante" : `${items.length} restaurantes`}
             </p>
           </div>
         </div>
@@ -108,8 +108,8 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
             inputMode="search"
             enterKeyHint="search"
             autoComplete="off"
-            aria-label="Search my list"
-            placeholder="Search my list"
+            aria-label="Pesquisar na minha lista"
+            placeholder="Pesquisar na minha lista"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="h-full min-w-0 flex-1 bg-transparent text-base outline-none"
@@ -117,7 +117,7 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
           {query && (
             <button
               type="button"
-              aria-label="Clear search"
+              aria-label="Limpar pesquisa"
               onClick={() => setQuery("")}
               className="-mr-1 flex size-7 items-center justify-center rounded-full leading-none text-neutral-500 hover:bg-neutral-200"
             >
@@ -139,7 +139,7 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
               onClick={() => setQuery("")}
               className="mt-2 h-11 rounded-full bg-accent px-6 text-sm font-semibold text-white shadow"
             >
-              Clear search
+              Limpar pesquisa
             </button>
           </div>
         ) : shown.length === 0 ? (
@@ -147,20 +147,20 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
             <span className="flex size-20 items-center justify-center rounded-full bg-accent/10 text-accent">
               <CutleryIcon className="size-10" />
             </span>
-            <p className="text-lg font-semibold">Nothing here yet</p>
+            <p className="text-lg font-semibold">Ainda não há nada aqui</p>
             <p className="max-w-64 text-sm text-neutral-500">
-              Tap a restaurant on the map and choose “{ADD_BUTTON_LABELS[tab]}”.
+              Toca num restaurante no mapa e escolhe “{ADD_BUTTON_LABELS[tab]}”.
             </p>
             <button
               type="button"
               onClick={onClose}
               className="mt-2 h-11 rounded-full bg-accent px-6 text-sm font-semibold text-white shadow"
             >
-              Explore the map
+              Explorar o mapa
             </button>
           </div>
         ) : (
-          <ul role={searching ? undefined : "tabpanel"} aria-label={searching ? "Search results" : undefined} className="flex flex-col gap-3">
+          <ul role={searching ? undefined : "tabpanel"} aria-label={searching ? "Resultados da pesquisa" : undefined} className="flex flex-col gap-3">
             {shown.map((item) => (
               <li
                 key={item.entryId}
@@ -187,7 +187,7 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
                       )}
                     </span>
                     <span className="mt-0.5 flex items-center gap-1 text-sm text-neutral-500">
-                      {item.kind ? kindLabel(item.kind) : "Restaurant"}
+                      {item.kind ? kindLabel(item.kind) : "Restaurante"}
                       {searching && (
                         <>
                           <span aria-hidden="true">·</span>
@@ -195,7 +195,7 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
                         </>
                       )}
                       <span aria-hidden="true">·</span>
-                      <span className="text-accent">See on map</span>
+                      <span className="text-accent">Ver no mapa</span>
                     </span>
                     {item.notes && (
                       <span className="mt-1 line-clamp-2 text-sm whitespace-pre-line text-neutral-600">{item.notes}</span>
@@ -204,7 +204,7 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
                 </button>
                 <button
                   type="button"
-                  aria-label={`Remove ${item.name}`}
+                  aria-label={`Remover ${item.name}`}
                   disabled={removing === item.entryId}
                   onClick={() => onRemove(item)}
                   className="flex size-10 shrink-0 items-center justify-center rounded-full text-neutral-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"

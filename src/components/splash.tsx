@@ -10,7 +10,7 @@ export function Splash() {
     >
       <p className="text-3xl font-semibold">Mordomia</p>
       <Spinner />
-      <p>Finding your location…</p>
+      <p>A encontrar a tua localização…</p>
     </div>
   );
 }

@@ -21,13 +21,13 @@ export type SelectedPlace = {
 };
 
 const KIND_LABELS: Record<FoodClass, string> = {
-  restaurant: "Restaurant",
+  restaurant: "Restaurante",
   fast_food: "Fast food",
   cafe: "Café",
   bar: "Bar",
   beer: "Pub",
-  ice_cream: "Ice cream",
-  bakery: "Bakery",
+  ice_cream: "Gelataria",
+  bakery: "Padaria",
 };
 
 export function kindLabel(kind: FoodClass): string {

@@ -9,7 +9,7 @@ type Props = {
   // Results are biased towards this position (the user, or the map's start).
   near: LatLng;
   onPick: (result: SearchResult) => void;
-  // "Can't find it?" → add a new restaurant with this name.
+  // "Não o encontras?" → add a new restaurant with this name.
   onAddNew: (name: string) => void;
   onClose: () => void;
 };
@@ -67,7 +67,7 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Search restaurants"
+        aria-label="Pesquisar restaurantes"
         onClick={(event) => event.stopPropagation()}
         className="flex max-h-[75vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
       >
@@ -79,25 +79,25 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
             inputMode="search"
             enterKeyHint="search"
             autoComplete="off"
-            aria-label="Restaurant name"
-            placeholder="Search restaurants"
+            aria-label="Nome do restaurante"
+            placeholder="Pesquisar restaurantes"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="h-14 min-w-0 flex-1 bg-transparent text-base outline-none"
           />
-          <button type="button" aria-label="Close" onClick={onClose} className="-m-1 p-1 leading-none text-neutral-500">
+          <button type="button" aria-label="Fechar" onClick={onClose} className="-m-1 p-1 leading-none text-neutral-500">
             ✕
           </button>
         </div>
         <div className="overflow-y-auto">
           {tooShort ? (
-            <p className="px-4 py-5 text-sm text-neutral-500">Type at least 2 letters.</p>
+            <p className="px-4 py-5 text-sm text-neutral-500">Escreve pelo menos 2 letras.</p>
           ) : status === "error" ? (
-            <p className="px-4 py-5 text-sm text-neutral-600">Search isn&apos;t working right now. Try again.</p>
+            <p className="px-4 py-5 text-sm text-neutral-600">A pesquisa não está a funcionar agora. Tenta outra vez.</p>
           ) : status === "loading" && results.length === 0 ? (
-            <p className="px-4 py-5 text-sm text-neutral-500">Searching…</p>
+            <p className="px-4 py-5 text-sm text-neutral-500">A pesquisar…</p>
           ) : status === "done" && results.length === 0 ? (
-            <p className="px-4 py-5 text-sm text-neutral-600">No restaurants found.</p>
+            <p className="px-4 py-5 text-sm text-neutral-600">Nenhum restaurante encontrado.</p>
           ) : (
             <ul aria-busy={status === "loading"}>
               {results.map((result) => (
@@ -121,8 +121,8 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
             >
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-lg text-white">+</span>
               <span className="min-w-0">
-                <span className="block text-sm text-neutral-600">Can&apos;t find it?</span>
-                <span className="block truncate font-semibold text-accent">Add “{query.trim()}” to the map</span>
+                <span className="block text-sm text-neutral-600">Não o encontras?</span>
+                <span className="block truncate font-semibold text-accent">Adicionar “{query.trim()}” ao mapa</span>
               </span>
             </button>
           )}

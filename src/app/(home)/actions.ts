@@ -44,18 +44,18 @@ export async function addToList(
   input?: { rating?: number | null; notes?: string | null },
 ): Promise<AddResult> {
   if (!place?.id || !place.name || !isFoodClass(place.kind) || !isListStatus(status)) {
-    return { ok: false, error: "Invalid place." };
+    return { ok: false, error: "Sítio inválido." };
   }
   const details = parseDetails(input);
-  if (!details) return { ok: false, error: "Rating must be a whole number from 0 to 10." };
+  if (!details) return { ok: false, error: "A nota tem de ser um número inteiro de 0 a 10." };
   const fields = status === "saved" ? { status, rating: details.rating, notes: details.notes } : { status, rating: null };
 
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
-  if (!claims?.claims) return { ok: false, error: "Not signed in." };
+  if (!claims?.claims) return { ok: false, error: "Sessão não iniciada." };
 
   const restaurantId = await restaurantIdFor(supabase, place);
-  if (!restaurantId) return { ok: false, error: "Couldn't save the restaurant." };
+  if (!restaurantId) return { ok: false, error: "Não foi possível guardar o restaurante." };
 
   const inserted = await supabase
     .from("entries")
@@ -75,7 +75,7 @@ export async function addToList(
       .single();
     saved = moved.data as Saved | null;
   }
-  if (!saved) return { ok: false, error: "Couldn't add it to your list." };
+  if (!saved) return { ok: false, error: "Não foi possível adicionar à tua lista." };
 
   return {
     ok: true,
@@ -109,12 +109,12 @@ export type CreateResult =
 // The same name already added within DUPLICATE_RADIUS_M is returned instead of creating a copy.
 export async function createRestaurant(input: Partial<NewRestaurant>): Promise<CreateResult> {
   const restaurant = parseNewRestaurant(input);
-  if (!restaurant) return { ok: false, error: "Add a name and a type, and keep the pin within 50 m of you." };
+  if (!restaurant) return { ok: false, error: "Indica um nome e um tipo, e mantém o pin a menos de 50 m de ti." };
   const row = { name: restaurant.name, kind: restaurant.kind, lat: restaurant.lat, lng: restaurant.lng };
 
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
-  if (!claims?.claims) return { ok: false, error: "Not signed in." };
+  if (!claims?.claims) return { ok: false, error: "Sessão não iniciada." };
 
   // ~0.002° ≈ 200 m: candidates for the duplicate check.
   const { data: nearby } = await supabase
@@ -143,7 +143,7 @@ export async function createRestaurant(input: Partial<NewRestaurant>): Promise<C
     .insert({ ...row, user_added: true })
     .select("id")
     .single();
-  if (error || !data) return { ok: false, error: "Couldn't add the restaurant." };
+  if (error || !data) return { ok: false, error: "Não foi possível adicionar o restaurante." };
 
   return { ok: true, existing: false, place: { id: customPlaceId(data.id as string), ...row } };
 }

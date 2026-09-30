@@ -61,7 +61,7 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
               </p>
             )}
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="-m-1 p-1 leading-none text-neutral-500">
+          <button type="button" aria-label="Fechar" onClick={onClose} className="-m-1 p-1 leading-none text-neutral-500">
             ✕
           </button>
         </div>
@@ -82,7 +82,7 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
                 className="flex h-12 items-center justify-center gap-2 rounded-full border-2 border-accent font-semibold text-accent disabled:opacity-60"
               >
                 {isSaved && <span aria-hidden="true">✓</span>}
-                {isSaved ? "Edit rating & notes" : "Adiciona à minha lista"}
+                {isSaved ? "Editar nota e notas" : "Adiciona à minha lista"}
               </button>
               <button
                 type="button"
@@ -101,7 +101,7 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
               rel="noreferrer"
               className="mt-4 block text-center text-sm text-neutral-600 underline"
             >
-              Open in Maps
+              Abrir no Maps
             </a>
           </>
         ) : (
@@ -116,14 +116,14 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
             <fieldset>
               <div className="mb-2 flex items-baseline justify-between">
                 <legend className="text-sm font-semibold">
-                  Rating <span className="font-normal text-neutral-500">(optional)</span>
+                  Nota <span className="font-normal text-neutral-500">(opcional)</span>
                 </legend>
                 <span aria-live="polite" className="text-2xl font-bold text-accent">
                   {rating === null ? "–" : rating}
                   <span className="text-sm font-medium text-neutral-400">/10</span>
                 </span>
               </div>
-              <div role="radiogroup" aria-label="Rating from 0 to 10" className="grid grid-cols-6 gap-2">
+              <div role="radiogroup" aria-label="Nota de 0 a 10" className="grid grid-cols-6 gap-2">
                 {RATINGS.map((value) => {
                   const active = rating === value;
                   return (
@@ -132,7 +132,7 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
                       type="button"
                       role="radio"
                       aria-checked={active}
-                      aria-label={`${value} out of 10`}
+                      aria-label={`${value} em 10`}
                       // Tapping the chosen number again clears the rating.
                       onClick={() => setRating(active ? null : value)}
                       className={`h-11 rounded-xl text-base font-semibold transition active:scale-95 ${
@@ -147,13 +147,13 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
             </fieldset>
 
             <label className="flex flex-col gap-2">
-              <span className="text-sm font-semibold">Notes</span>
+              <span className="text-sm font-semibold">Notas</span>
               <textarea
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 maxLength={NOTES_MAX}
                 rows={4}
-                placeholder="Whatever you want to remember: dishes, who you went with, price…"
+                placeholder="O que quiseres lembrar: pratos, com quem foste, preço…"
                 className="resize-none rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-base outline-none focus:border-accent focus:bg-white"
               />
             </label>
@@ -164,14 +164,14 @@ export function PlaceDialog({ place, current, pending, onChoose, onClose }: Prop
                 onClick={() => setView("choose")}
                 className="h-12 flex-1 rounded-full border-2 border-neutral-200 font-semibold text-neutral-700"
               >
-                Back
+                Voltar
               </button>
               <button
                 type="submit"
                 disabled={pending !== null}
                 className="h-12 flex-[2] rounded-full bg-accent font-semibold text-white shadow disabled:opacity-60"
               >
-                {pending === "saved" ? "Saving…" : "Save"}
+                {pending === "saved" ? "A guardar…" : "Guardar"}
               </button>
             </div>
           </form>

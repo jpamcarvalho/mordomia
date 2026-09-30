@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   const userAdded: SearchResult[] = (custom.data ?? []).flatMap((r) =>
     isFoodClass(r.kind) && r.lat != null && r.lng != null
-      ? [{ id: customPlaceId(r.id), name: r.name, kind: r.kind, lat: r.lat, lng: r.lng, address: "Added by a Mordomia user" }]
+      ? [{ id: customPlaceId(r.id), name: r.name, kind: r.kind, lat: r.lat, lng: r.lng, address: "Adicionado por um utilizador do Mordomia" }]
       : [],
   );
   if (!res.ok && userAdded.length === 0) {

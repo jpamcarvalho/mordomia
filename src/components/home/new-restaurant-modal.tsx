@@ -25,9 +25,9 @@ const FIX_OPTIONS: PositionOptions = { enableHighAccuracy: true, timeout: 15_000
 const IMPRECISE_M = 100;
 
 const ERRORS: Record<number, string> = {
-  1: "Location is off. Allow location to add a restaurant — you need to be there.",
-  2: "We couldn't find your location. Try again.",
-  3: "Finding your location took too long. Try again.",
+  1: "A localização está desligada. Ativa-a para adicionar um restaurante — tens de estar lá.",
+  2: "Não conseguimos encontrar a tua localização. Tenta outra vez.",
+  3: "Encontrar a tua localização demorou demasiado. Tenta outra vez.",
 };
 
 // Step 1 of adding a restaurant that isn't on the map: name, type and the user's position.
@@ -41,7 +41,7 @@ export function NewRestaurantModal({ initial, onNext, onClose }: Props) {
   // Results arrive in callbacks; the "locating" state is set by the caller (initial state or Try again).
   const requestFix = useCallback(() => {
     if (!navigator.geolocation) {
-      queueMicrotask(() => setFix({ status: "error", message: "This device can't share its location." }));
+      queueMicrotask(() => setFix({ status: "error", message: "Este dispositivo não consegue partilhar a localização." }));
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -90,31 +90,31 @@ export function NewRestaurantModal({ initial, onNext, onClose }: Props) {
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <h2 id="new-restaurant-title" className="text-xl font-semibold">
-              New restaurant
+              Novo restaurante
             </h2>
-            <p className="mt-1 text-sm text-neutral-500">Not on the map? Add it while you&apos;re there.</p>
+            <p className="mt-1 text-sm text-neutral-500">Não está no mapa? Adiciona-o enquanto lá estás.</p>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="-m-1 p-1 leading-none text-neutral-500">
+          <button type="button" aria-label="Fechar" onClick={onClose} className="-m-1 p-1 leading-none text-neutral-500">
             ✕
           </button>
         </div>
 
         <label className="flex flex-col gap-2">
-          <span className="text-sm font-semibold">Name</span>
+          <span className="text-sm font-semibold">Nome</span>
           <input
             ref={nameRef}
             value={name}
             onChange={(event) => setName(event.target.value)}
             maxLength={NAME_MAX}
             required
-            placeholder="e.g. Tasca do Zé"
+            placeholder="ex.: Tasca do Zé"
             className="h-12 rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-base outline-none focus:border-accent focus:bg-white"
           />
         </label>
 
         <fieldset>
-          <legend className="mb-2 text-sm font-semibold">Type</legend>
-          <div role="radiogroup" aria-label="Type" className="flex flex-wrap gap-2">
+          <legend className="mb-2 text-sm font-semibold">Tipo</legend>
+          <div role="radiogroup" aria-label="Tipo" className="flex flex-wrap gap-2">
             {FOOD_CLASSES.map((value) => {
               const active = kind === value;
               return (
@@ -146,16 +146,16 @@ export function NewRestaurantModal({ initial, onNext, onClose }: Props) {
             📍
           </span>
           <div className="flex-1">
-            {fix.status === "locating" && <p>Finding your exact location…</p>}
+            {fix.status === "locating" && <p>A encontrar a tua localização exata…</p>}
             {fix.status === "ok" && (
               <>
-                <p className="font-medium">Found your location</p>
+                <p className="font-medium">Encontrámos a tua localização</p>
                 <p className={fix.accuracy > IMPRECISE_M ? "text-amber-700" : "text-neutral-500"}>
-                  Accurate to about {fix.accuracy} m
+                  Precisão de cerca de {fix.accuracy} m
                   {fix.accuracy > IMPRECISE_M && " — move outside or closer to the door for a better fix"}
                 </p>
                 <p className="text-neutral-500">
-                  Next you&apos;ll place the pin on the exact spot (up to {PIN_RANGE_M} m from you).
+                  A seguir vais pôr o pin no sítio exato (até {PIN_RANGE_M} m de ti).
                 </p>
               </>
             )}
@@ -163,19 +163,19 @@ export function NewRestaurantModal({ initial, onNext, onClose }: Props) {
           </div>
           {fix.status !== "locating" && (
             <button type="button" onClick={relocate} className="shrink-0 font-semibold text-accent">
-              {fix.status === "ok" ? "Refresh" : "Try again"}
+              {fix.status === "ok" ? "Atualizar" : "Tentar outra vez"}
             </button>
           )}
         </div>
 
-        <p className="text-xs text-neutral-500">Everyone on Mordomia will be able to see it on the map and find it in search.</p>
+        <p className="text-xs text-neutral-500">Todos no Mordomia vão poder vê-lo no mapa e encontrá-lo na pesquisa.</p>
 
         <button
           type="submit"
           disabled={!canContinue}
           className="h-12 rounded-full bg-accent font-semibold text-white shadow disabled:opacity-50"
         >
-          Next: place the pin
+          Seguinte: pôr o pin
         </button>
       </form>
     </div>

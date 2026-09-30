@@ -10,13 +10,13 @@ test("AC-1: a signed-out visitor is redirected to /login", async ({ page }) => {
 
 test("AC-2: sign-up rejects an invalid username", async ({ page }) => {
   await page.goto("/login");
-  await page.getByRole("tab", { name: "Sign up" }).click();
-  await page.getByLabel("Username", { exact: true }).fill("a!");
+  await page.getByRole("tab", { name: "Registar" }).click();
+  await page.getByLabel("Nome de utilizador", { exact: true }).fill("a!");
   await page.getByLabel("Email", { exact: true }).fill("invalid-username@example.test");
-  await page.getByLabel("Password", { exact: true }).fill("password123");
-  await page.getByRole("button", { name: "Create account" }).click();
+  await page.getByLabel("Palavra-passe", { exact: true }).fill("password123");
+  await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(
-    page.getByText("Username must be 3–24 characters: letters, numbers or _."),
+    page.getByText("O nome de utilizador tem de ter 3–24 caracteres: letras, números ou _."),
   ).toBeVisible();
 });
 
@@ -37,10 +37,10 @@ test.describe("with a confirmed user", () => {
     await signIn(page, user);
     await expect(page).toHaveURL(/\/$/);
 
-    await page.getByRole("button", { name: "Account menu" }).click();
+    await page.getByRole("button", { name: "Menu da conta" }).click();
     await expect(page.getByRole("menu")).toContainText(`@${user.username}`);
 
-    await page.getByRole("menuitem", { name: "Sign out" }).click();
+    await page.getByRole("menuitem", { name: "Terminar sessão" }).click();
     await expect(page).toHaveURL(/\/login$/);
 
     // The session is gone: the home page redirects again.

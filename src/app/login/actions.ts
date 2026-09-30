@@ -7,20 +7,35 @@ import { isValidUsername, normalizeUsername } from "@/lib/validation/username";
 
 export type AuthState = { error?: string; message?: string };
 
+// Supabase Auth error codes shown to the user in Portuguese; anything else gets a generic message.
+const AUTH_ERRORS: Record<string, string> = {
+  invalid_credentials: "Email ou palavra-passe errados.",
+  email_not_confirmed: "Ainda não confirmaste o teu email.",
+  user_already_exists: "Já existe uma conta com este email.",
+  email_exists: "Já existe uma conta com este email.",
+  weak_password: "A palavra-passe é demasiado fraca.",
+  over_email_send_rate_limit: "Demasiados emails enviados. Tenta mais tarde.",
+  over_request_rate_limit: "Demasiadas tentativas. Tenta mais tarde.",
+};
+
+function authError(error: { code?: string }): string {
+  return (error.code && AUTH_ERRORS[error.code]) || "Algo correu mal. Tenta outra vez.";
+}
+
 export async function login(_: AuthState, formData: FormData): Promise<AuthState> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
     email: String(formData.get("email")),
     password: String(formData.get("password")),
   });
-  if (error) return { error: error.message };
+  if (error) return { error: authError(error) };
   redirect("/");
 }
 
 export async function signup(_: AuthState, formData: FormData): Promise<AuthState> {
   const username = normalizeUsername(String(formData.get("username")));
   if (!isValidUsername(username)) {
-    return { error: "Username must be 3–24 characters: letters, numbers or _." };
+    return { error: "O nome de utilizador tem de ter 3–24 caracteres: letras, números ou _." };
   }
 
   const supabase = await createClient();
@@ -33,8 +48,8 @@ export async function signup(_: AuthState, formData: FormData): Promise<AuthStat
       emailRedirectTo: `${origin}/auth/confirm`,
     },
   });
-  if (error) return { error: error.message };
-  return { message: "Check your email to confirm your account." };
+  if (error) return { error: authError(error) };
+  return { message: "Vê o teu email para confirmares a conta." };
 }
 
 export async function logout() {

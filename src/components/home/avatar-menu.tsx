@@ -32,7 +32,7 @@ export function AvatarMenu({ username }: { username: string | null }) {
     >
       <button
         type="button"
-        aria-label="Account menu"
+        aria-label="Menu da conta"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((isOpen) => !isOpen)}
@@ -45,7 +45,7 @@ export function AvatarMenu({ username }: { username: string | null }) {
           {username && <p className="px-4 py-2 font-medium">@{username}</p>}
           <form action={logout}>
             <button role="menuitem" className="w-full px-4 py-2 text-left hover:bg-neutral-100">
-              Sign out
+              Terminar sessão
             </button>
           </form>
         </div>

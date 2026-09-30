@@ -26,7 +26,7 @@ export function PinPlacement({ name, kind, gps, pin, saving, onConfirm, onRecent
     <>
       <div className="pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top)+1rem)] z-30 flex justify-center px-4">
         <p className="rounded-full bg-neutral-900/85 px-4 py-2 text-sm text-white shadow-lg">
-          Move the map to put the pin on the entrance
+          Move o mapa para pôr o pin na entrada
         </p>
       </div>
 
@@ -46,7 +46,7 @@ export function PinPlacement({ name, kind, gps, pin, saving, onConfirm, onRecent
       <div className="pointer-events-none absolute top-1/2 left-1/2 z-30 size-2 -translate-1/2 rounded-full bg-black/40" />
 
       <section
-        aria-label="Place the pin"
+        aria-label="Colocar o pin"
         className="absolute inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"
       >
         <div className="mx-auto flex max-w-md flex-col gap-3 rounded-2xl bg-white p-4 shadow-xl">
@@ -55,10 +55,10 @@ export function PinPlacement({ name, kind, gps, pin, saving, onConfirm, onRecent
               <p className="truncate text-lg font-semibold">{name}</p>
               <p role="status" className={`text-sm ${tooFar ? "font-medium text-red-600" : "text-neutral-500"}`}>
                 {tooFar
-                  ? `${distance} m from you — keep it within ${PIN_RANGE_M} m`
+                  ? `A ${distance} m de ti — mantém-no a menos de ${PIN_RANGE_M} m`
                   : distance === 0
-                    ? "Right where you are"
-                    : `${distance} m from you`}
+                    ? "Mesmo onde estás"
+                    : `A ${distance} m de ti`}
               </p>
             </div>
             <button
@@ -66,7 +66,7 @@ export function PinPlacement({ name, kind, gps, pin, saving, onConfirm, onRecent
               onClick={onRecenter}
               className="shrink-0 rounded-full bg-neutral-100 px-3 py-2 text-sm font-semibold text-neutral-700"
             >
-              Reset
+              Repor
             </button>
           </div>
           <div className="flex gap-3">
@@ -75,7 +75,7 @@ export function PinPlacement({ name, kind, gps, pin, saving, onConfirm, onRecent
               onClick={onBack}
               className="h-12 flex-1 rounded-full border-2 border-neutral-200 font-semibold text-neutral-700"
             >
-              Back
+              Voltar
             </button>
             <button
               type="button"
@@ -83,7 +83,7 @@ export function PinPlacement({ name, kind, gps, pin, saving, onConfirm, onRecent
               onClick={(event) => onConfirm(event.currentTarget.getBoundingClientRect())}
               className="h-12 flex-[2] rounded-full bg-accent font-semibold text-white shadow disabled:opacity-50"
             >
-              {saving ? "Adding…" : "Confirm location"}
+              {saving ? "A adicionar…" : "Confirmar localização"}
             </button>
           </div>
         </div>

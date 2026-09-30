@@ -165,7 +165,7 @@ export function HomeMap({ username, initialList, initialCustomPlaces }: Props) {
       const { place, existing } = result;
       if (!existing) setCustomPlaces((places) => [...places, place]);
       stopPlacing();
-      setToast(existing ? `${place.name} is already on the map` : `${place.name} added to the map`);
+      setToast(existing ? `${place.name} já está no mapa` : `${place.name} adicionado ao mapa`);
       if (!existing && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         setFlight({ x: origin.left + origin.width / 2, y: origin.top + origin.height / 2 });
       }
@@ -177,7 +177,7 @@ export function HomeMap({ username, initialList, initialCustomPlaces }: Props) {
 
   function add() {
     setFabOpen(false);
-    setToast("Tap a restaurant on the map to add it");
+    setToast("Toca num restaurante no mapa para o adicionar");
   }
 
   function choose(status: ListStatus, details: EntryDetails | undefined, origin: DOMRect) {
@@ -205,7 +205,7 @@ export function HomeMap({ username, initialList, initialCustomPlaces }: Props) {
     const { ok } = await removeFromList(item.entryId);
     setRemoving(null);
     if (ok) setList((items) => items.filter((other) => other.entryId !== item.entryId));
-    else setToast("Couldn't remove it. Try again.");
+    else setToast("Não foi possível remover. Tenta outra vez.");
   }
 
   function pick(item: ListItem) {

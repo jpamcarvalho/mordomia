@@ -6,8 +6,8 @@ import { login, signup, type AuthState } from "./actions";
 type Mode = "login" | "signup";
 
 const TABS: { mode: Mode; label: string }[] = [
-  { mode: "login", label: "Sign in" },
-  { mode: "signup", label: "Sign up" },
+  { mode: "login", label: "Entrar" },
+  { mode: "signup", label: "Registar" },
 ];
 
 export default function LoginPage() {
@@ -28,11 +28,11 @@ export default function LoginPage() {
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold">Mordomia</h1>
         <p className="text-neutral-600">
-          The restaurants you went to and the ones you want to try, with friends.
+          Os restaurantes onde foste e os que queres experimentar, com amigos.
         </p>
       </div>
 
-      <div role="tablist" aria-label="Account" className="flex border-b border-neutral-200">
+      <div role="tablist" aria-label="Conta" className="flex border-b border-neutral-200">
         {TABS.map((tab) => {
           const active = mode === tab.mode;
           return (
@@ -64,7 +64,7 @@ export default function LoginPage() {
         {mode === "signup" && (
           <div className="flex flex-col gap-1">
             <label htmlFor="username" className="text-sm font-medium">
-              Username
+              Nome de utilizador
             </label>
             <input
               id="username"
@@ -90,7 +90,7 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="password" className="text-sm font-medium">
-            Password
+            Palavra-passe
           </label>
           <div className="relative">
             <input
@@ -104,12 +104,12 @@ export default function LoginPage() {
             />
             <button
               type="button"
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? "Esconder palavra-passe" : "Mostrar palavra-passe"}
               aria-pressed={showPassword}
               onClick={() => setShowPassword((shown) => !shown)}
               className="absolute inset-y-0 right-0 px-3 text-sm font-medium text-neutral-600"
             >
-              {showPassword ? "Hide" : "Show"}
+              {showPassword ? "Esconder" : "Mostrar"}
             </button>
           </div>
         </div>
@@ -117,7 +117,7 @@ export default function LoginPage() {
           disabled={pending}
           className="rounded-lg bg-accent px-3 py-2 font-medium text-white disabled:opacity-50"
         >
-          {mode === "login" ? "Sign in" : "Create account"}
+          {mode === "login" ? "Entrar" : "Criar conta"}
         </button>
         {state.error && <p className="text-sm text-red-600">{state.error}</p>}
         {state.message && <p className="text-sm text-green-700">{state.message}</p>}
