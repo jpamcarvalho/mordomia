@@ -114,7 +114,7 @@ No new test files (Decision #27): update existing tests only where the behavior 
     the recenter reading (AC-7 failure rules unchanged).
   - Done when: lint, typecheck and `npm test` pass.
 
-- [ ] **Task 9 — Splash on `/` only (AC-3)**
+- [x] **Task 9 — Splash on `/` only (AC-3)**
   - Files: move `src/app/page.tsx` → `src/app/(home)/page.tsx` and `src/app/loading.tsx` → `src/app/(home)/loading.tsx`;
     fix imports (e.g. `../login/actions`) and any test that imports these paths
   - Do: route group so the splash is the Suspense fallback for `/` only; `/login` and future routes get no splash.

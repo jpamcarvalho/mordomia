@@ -1,6 +1,6 @@
 import { Spinner } from "./spinner";
 
-// Full-screen white splash (AC-3). Shown by app/loading.tsx and by HomeMap until the map is ready.
+// Full-screen white splash (AC-3). Shown by app/(home)/loading.tsx and by HomeMap until the map is ready.
 export function Splash() {
   return (
     <div
