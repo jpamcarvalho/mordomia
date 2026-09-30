@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { LIST_LABELS, LIST_STATUSES, type ListItem, type ListStatus } from "@/lib/list/types";
 import { searchList } from "@/lib/list/search";
-import { kindEmoji, kindLabel } from "@/lib/map/restaurants";
+import { filterByKinds, kindCounts } from "@/lib/list/filter";
+import { kindEmoji, kindLabel, kindsLabel, placeKinds, type FoodClass } from "@/lib/map/restaurants";
 import { CutleryIcon } from "./list-fab";
 import { MagnifierIcon } from "./search-modal";
 
@@ -28,20 +29,35 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
     () => LIST_STATUSES.find((status) => items.some((item) => item.status === status)) ?? "saved",
   );
   const [query, setQuery] = useState("");
+  // Type filter (any of these); kept when switching tabs.
+  const [kinds, setKinds] = useState<FoodClass[]>([]);
   // Searching looks through both lists; otherwise the current tab.
   const searching = query.trim() !== "";
-  const shown = searching ? searchList(items, query) : items.filter((item) => item.status === tab);
+  const base = searching ? searchList(items, query) : items.filter((item) => item.status === tab);
+  const shown = filterByKinds(base, kinds);
+  const filtering = kinds.length > 0;
+  // Chips for the types on screen, plus any chosen type that has nothing here right now.
+  const counts = kindCounts(base);
+  const chips = [
+    ...counts,
+    ...kinds.filter((kind) => !counts.some((c) => c.kind === kind)).map((kind) => ({ kind, count: 0 })),
+  ];
+
+  function toggleKind(kind: FoodClass) {
+    setKinds((current) => (current.includes(kind) ? current.filter((k) => k !== kind) : [...current, kind]));
+  }
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
-      // First Escape clears the search, the next one closes the page.
+      // Escape clears the search, then the type filter, then closes the page.
       if (query) setQuery("");
+      else if (filtering) setKinds([]);
       else onClose();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onClose, query]);
+  }, [onClose, query, filtering]);
 
   return (
     <section
@@ -125,10 +141,47 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
             </button>
           )}
         </div>
+
+        {(chips.length > 1 || filtering) && (
+          <div
+            role="group"
+            aria-label="Filtrar por tipo"
+            className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]"
+          >
+            <button
+              type="button"
+              aria-pressed={!filtering}
+              onClick={() => setKinds([])}
+              className={`flex h-9 shrink-0 items-center rounded-full px-4 text-sm font-semibold transition active:scale-95 ${
+                filtering ? "bg-neutral-100 text-neutral-600" : "bg-foreground text-white"
+              }`}
+            >
+              Todos
+            </button>
+            {chips.map(({ kind, count }) => {
+              const active = kinds.includes(kind);
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => toggleKind(kind)}
+                  className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition active:scale-95 ${
+                    active ? "bg-accent text-white shadow" : "bg-neutral-100 text-neutral-700"
+                  }`}
+                >
+                  <span aria-hidden="true">{kindEmoji(kind)}</span>
+                  {kindLabel(kind)}
+                  <span className={`text-xs ${active ? "text-white/80" : "text-neutral-400"}`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
-        {shown.length === 0 && searching ? (
+        {shown.length === 0 && searching && !(filtering && base.length > 0) ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
             <span className="flex size-20 items-center justify-center rounded-full bg-accent/10 text-accent">
               <CutleryIcon className="size-10" />
@@ -140,6 +193,22 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
               className="mt-2 h-11 rounded-full bg-accent px-6 text-sm font-semibold text-white shadow"
             >
               Limpar pesquisa
+            </button>
+          </div>
+        ) : shown.length === 0 && filtering && base.length > 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+            <span aria-hidden="true" className="flex size-20 items-center justify-center rounded-full bg-accent/10 text-4xl">
+              {kindEmoji(kinds[0])}
+            </span>
+            <p className="max-w-72 text-lg font-semibold">
+              Nenhum sítio deste tipo {searching ? "na pesquisa" : "nesta lista"}
+            </p>
+            <button
+              type="button"
+              onClick={() => setKinds([])}
+              className="mt-2 h-11 rounded-full bg-accent px-6 text-sm font-semibold text-white shadow"
+            >
+              Ver todos
             </button>
           </div>
         ) : shown.length === 0 ? (
@@ -187,7 +256,7 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
                       )}
                     </span>
                     <span className="mt-0.5 flex items-center gap-1 text-sm text-neutral-500">
-                      {item.kind ? kindLabel(item.kind) : "Restaurante"}
+                      {item.kind ? kindsLabel(placeKinds(item)) : "Restaurante"}
                       {searching && (
                         <>
                           <span aria-hidden="true">·</span>
