@@ -19,7 +19,7 @@
 5. Put both values in `.env.local` (and in Vercel project env vars). Without either, `/` shows the AC-11 error.
 > Read `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/loading.md` before Task 4.
 
-- [ ] **Task 1 — Always-light theme and accent token**
+- [x] **Task 1 — Always-light theme and accent token**
   - Files: `src/app/globals.css`, `src/app/layout.tsx`, `src/app/manifest.ts`, `src/app/login/page.tsx` (remove the
     `dark:` classes only), `src/app/theme.test.ts`
   - AC: AC-1, AC-2 (token)
