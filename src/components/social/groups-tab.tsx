@@ -130,6 +130,11 @@ export function GroupsTab({ userId, groups, onGroups, friends, onFindFriends }: 
                     <Faces people={group.members.filter((member) => member.status === "member")} />
                     <span className="text-xs text-neutral-500">{memberCount(group)}</span>
                   </span>
+                  {group.connoisseur && (
+                    <span className="mt-2 flex">
+                      <ConnoisseurPill connoisseur={group.connoisseur} />
+                    </span>
+                  )}
                 </span>
                 <span aria-hidden="true" className="text-xl text-neutral-300">
                   ›
@@ -189,6 +194,33 @@ export function PersonAvatar({ person, className = "size-11 text-base" }: { pers
       ) : (
         avatarInitial(person.username)
       )}
+    </span>
+  );
+}
+
+// The group's Connoisseur (most times mordomo): their avatar wears a crown.
+export function CrownedAvatar({ person, className = "size-6 text-[10px]" }: { person: Person; className?: string }) {
+  return (
+    <span className="relative inline-flex shrink-0">
+      <PersonAvatar person={person} className={`ring-2 ring-amber-400 ${className}`} />
+      <span aria-hidden="true" className="absolute -top-2 -right-1.5 rotate-12 text-[13px] leading-none drop-shadow-sm">
+        👑
+      </span>
+    </span>
+  );
+}
+
+// "👑 Connoisseur · Ana": who has been mordomo the most in the group.
+export function ConnoisseurPill({ connoisseur }: { connoisseur: NonNullable<Group["connoisseur"]> }) {
+  const { person, count } = connoisseur;
+  return (
+    <span
+      title={`${person.displayName}: mordomo ${count === 1 ? "1 vez" : `${count} vezes`}`}
+      className="inline-flex max-w-full items-center gap-2 rounded-full bg-amber-50 py-1 pr-3 pl-1 ring-1 ring-amber-200"
+    >
+      <CrownedAvatar person={person} />
+      <span className="text-xs font-bold tracking-wide text-amber-800 uppercase">Connoisseur</span>
+      <span className="truncate text-xs font-medium text-neutral-600">{person.displayName.split(" ")[0]}</span>
     </span>
   );
 }
@@ -536,7 +568,11 @@ export function GroupSheet({ group, userId, friends, onClose, onChanged }: Sheet
             <ul className="overflow-hidden rounded-2xl ring-1 ring-neutral-200">
               {group.members.map((member) => (
                 <li key={member.id} className="flex items-center gap-3 border-b border-neutral-100 px-4 py-2.5 last:border-0">
-                  <PersonAvatar person={member} className={`size-10 text-sm ${member.status === "invited" ? "opacity-50" : ""}`} />
+                  {group.connoisseur?.person.id === member.id ? (
+                    <CrownedAvatar person={member} className="size-10 text-sm" />
+                  ) : (
+                    <PersonAvatar person={member} className={`size-10 text-sm ${member.status === "invited" ? "opacity-50" : ""}`} />
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">
                       {member.displayName}
@@ -544,6 +580,7 @@ export function GroupSheet({ group, userId, friends, onClose, onChanged }: Sheet
                     </span>
                     <span className="block truncate text-xs text-neutral-500">@{member.username}</span>
                   </span>
+                  {group.connoisseur?.person.id === member.id && <Tag gold>Connoisseur</Tag>}
                   {member.id === group.ownerId ? (
                     <Tag>Criador</Tag>
                   ) : member.status === "invited" ? (
@@ -602,9 +639,13 @@ export function GroupSheet({ group, userId, friends, onClose, onChanged }: Sheet
   );
 }
 
-function Tag({ muted, children }: { muted?: boolean; children: React.ReactNode }) {
+function Tag({ muted, gold, children }: { muted?: boolean; gold?: boolean; children: React.ReactNode }) {
   return (
-    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${muted ? "bg-neutral-100 text-neutral-500" : "bg-orange-100 text-accent"}`}>
+    <span
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+        gold ? "bg-amber-100 text-amber-800" : muted ? "bg-neutral-100 text-neutral-500" : "bg-orange-100 text-accent"
+      }`}
+    >
       {children}
     </span>
   );

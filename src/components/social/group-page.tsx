@@ -17,7 +17,9 @@ import type { Person } from "@/app/social/actions";
 import { Spinner } from "@/components/spinner";
 import { EVENT_TITLE_MAX } from "@/lib/social/groups";
 import { formatDay } from "@/lib/social/dates";
-import { GroupPhoto, GroupSheet, PersonAvatar, Sheet, SheetHeader, memberCount, primary, secondary } from "./groups-tab";
+import { mapHref } from "@/lib/map/place-link";
+import { kindEmoji } from "@/lib/map/restaurants";
+import { ConnoisseurPill, GroupPhoto, GroupSheet, PersonAvatar, Sheet, SheetHeader, groupHref, memberCount, primary, secondary } from "./groups-tab";
 
 type Props = {
   userId: string;
@@ -99,6 +101,19 @@ export function GroupPage({ userId, initialGroup, initialEvents, friends }: Prop
           <button type="button" onClick={() => setInfo(true)} className="mt-0.5 text-sm text-neutral-500 hover:text-accent">
             {memberCount(group)}
           </button>
+          {group.connoisseur && (
+            <span className="mt-3 flex max-w-full">
+              <ConnoisseurPill connoisseur={group.connoisseur} />
+            </span>
+          )}
+          {member && (
+            <Link
+              href={`${groupHref(group.id)}/detalhes`}
+              className="mt-3 flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-neutral-700 shadow-sm ring-1 ring-black/5 transition hover:text-accent active:scale-95"
+            >
+              <span aria-hidden="true">🏆</span> Detalhes do grupo
+            </Link>
+          )}
         </header>
 
         {error && <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
@@ -304,6 +319,26 @@ function EventCard({ event, index, onChanged }: { event: GroupEvent; index: numb
           </span>
           <span className="text-xs font-semibold text-neutral-600">{event.going.length === 1 ? "1 vai" : `${event.going.length} vão`}</span>
         </div>
+      ) : null}
+      {event.date && event.location ? (
+        <div className="mt-2 flex items-center gap-2 rounded-2xl bg-sky-50 px-3 py-2 ring-1 ring-sky-100">
+          <span aria-hidden="true" className="text-xl">
+            {kindEmoji(event.location.kind)}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-bold text-sky-800">📍 Local</span>
+            <span className="block truncate text-sm font-semibold">{event.location.name}</span>
+          </span>
+          <Link href={mapHref(event.location)} className="shrink-0 text-xs font-semibold text-sky-700 underline">
+            Ver no mapa
+          </Link>
+        </div>
+      ) : event.date ? (
+        <p className="mt-2 text-sm text-neutral-500">
+          📍 Ainda sem local
+          {event.suggestions.length > 0 &&
+            ` · ${event.suggestions.length === 1 ? "1 sugestão" : `${event.suggestions.length} sugestões`}`}
+        </p>
       ) : event.mordomo ? (
         <p className="mt-2 text-sm text-neutral-500">
           {event.dateOptions.length > 0 ? "🗳️ Votação dos dias a decorrer" : "📅 Ainda sem data"}

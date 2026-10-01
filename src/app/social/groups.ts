@@ -3,6 +3,7 @@
 import { RESTAURANT_PLACE_COLUMNS, restaurantIdFor, restaurantToPlace, type RestaurantPlaceRow } from "@/lib/list/restaurant-id";
 import { isFoodClass, type SelectedPlace } from "@/lib/map/restaurants";
 import { isOwnAvatarPath } from "@/lib/profile/account";
+import { connoisseur } from "@/lib/social/connoisseur";
 import { EVENT_TITLE_MAX, GROUP_DESCRIPTION_MAX, GROUP_NAME_MAX, GROUP_PHOTO_BUCKET } from "@/lib/social/groups";
 import {
   PROFILE_COLUMNS,
@@ -32,6 +33,8 @@ export type Group = {
   invitedBy: Person | null;
   // The owner first, then members by name, then pending invites.
   members: GroupMember[];
+  // The member who has been mordomo the most times (members only: invitees see no events).
+  connoisseur: { person: Person; count: number } | null;
   createdAt: string;
 };
 
@@ -61,14 +64,13 @@ export async function loadGroups(): Promise<Group[]> {
   const groups = (groupRows ?? []) as GroupRow[];
   if (groups.length === 0) return [];
 
-  const { data: memberRows } = await supabase
-    .from("group_members")
-    .select("group_id, user_id, status, invited_by")
-    .in(
-      "group_id",
-      groups.map((group) => group.id),
-    );
+  const groupIds = groups.map((group) => group.id);
+  const [{ data: memberRows }, { data: mordomoRows }] = await Promise.all([
+    supabase.from("group_members").select("group_id, user_id, status, invited_by").in("group_id", groupIds),
+    supabase.from("group_events").select("group_id, mordomo_id, created_at").in("group_id", groupIds).not("mordomo_id", "is", null),
+  ]);
   const members = (memberRows ?? []) as MemberRow[];
+  const mordomos = (mordomoRows ?? []) as { group_id: string; mordomo_id: string; created_at: string }[];
   const personIds = new Set(members.flatMap((row) => [row.user_id, row.invited_by ?? row.user_id]));
   const [{ data: profiles }, photos] = await Promise.all([
     supabase.from("profiles").select(PROFILE_COLUMNS).in("id", [...personIds]),
@@ -107,6 +109,14 @@ export async function loadGroups(): Promise<Group[]> {
           myStatus: mine.status,
           invitedBy: mine.status === "invited" && mine.invited_by ? (people.get(mine.invited_by) ?? null) : null,
           members: list,
+          connoisseur: (() => {
+            const top = connoisseur(
+              mordomos.filter((row) => row.group_id === group.id).map((row) => ({ mordomoId: row.mordomo_id, createdAt: row.created_at })),
+              rows.filter((row) => row.status === "member").map((row) => row.user_id),
+            );
+            const person = top && people.get(top.id);
+            return top && person ? { person, count: top.count } : null;
+          })(),
           createdAt: group.created_at,
         },
       ];
