@@ -21,8 +21,10 @@ type Props = {
   // Results are biased towards this position (the user, or the map's start).
   near: LatLng;
   onPick: (result: SearchResult) => void;
-  // "Não o encontras?" → add a new restaurant with this name.
-  onAddNew: (name: string) => void;
+  // "Não o encontras?" → add a new restaurant with this name (hidden when missing).
+  onAddNew?: (name: string) => void;
+  // Dialog title / placeholder (default: "Pesquisar restaurantes").
+  label?: string;
   onClose: () => void;
 };
 
@@ -30,8 +32,8 @@ const DEBOUNCE_MS = 300;
 
 type Status = "idle" | "loading" | "done" | "error";
 
-// Search restaurants by name; picking one takes the map there.
-export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
+// Search restaurants by name; picking one takes the map there (or, elsewhere, picks it for an event).
+export function SearchModal({ near, onPick, onAddNew, onClose, label = "Pesquisar restaurantes" }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [status, setStatus] = useState<Status>("idle");
@@ -86,13 +88,13 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
 
   return (
     <div
-      className="absolute inset-0 z-40 flex items-start justify-center bg-black/30 px-4 pt-[calc(env(safe-area-inset-top)+4.5rem)]"
+      className="fixed inset-0 z-40 flex items-start justify-center bg-black/30 px-4 pt-[calc(env(safe-area-inset-top)+4.5rem)]"
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Pesquisar restaurantes"
+        aria-label={label}
         onClick={(event) => event.stopPropagation()}
         className="flex max-h-[75vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
       >
@@ -105,7 +107,7 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
             enterKeyHint="search"
             autoComplete="off"
             aria-label="Nome do restaurante"
-            placeholder="Pesquisar restaurantes"
+            placeholder={label}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="h-14 min-w-0 flex-1 bg-transparent text-base outline-none"
@@ -189,7 +191,7 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
               ))}
             </ul>
           )}
-          {!tooShort && (status === "done" || status === "error") && (
+          {onAddNew && !tooShort && (status === "done" || status === "error") && (
             <button
               type="button"
               onClick={() => onAddNew(query.trim())}

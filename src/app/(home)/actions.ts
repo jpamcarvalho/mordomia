@@ -1,41 +1,17 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { restaurantIdFor } from "@/lib/list/restaurant-id";
 import { parseDetails } from "@/lib/list/details";
 import { isListStatus, type ListItem, type ListStatus } from "@/lib/list/types";
 import { DUPLICATE_RADIUS_M, NAME_MAX, distanceMeters, parseNewRestaurant, type NewRestaurant } from "@/lib/list/new-restaurant";
 import { findGoogleMapsLink, isGoogleMapsUrl, parseGoogleMapsUrl, type LinkPlace } from "@/lib/search/google-link";
 import { PHOTON_URL, normalizeName } from "@/lib/search/photon";
-import { customPlaceId, customRestaurantId, isFoodClass, parseKinds, type FoodClass, type SelectedPlace } from "@/lib/map/restaurants";
-
-export type AddResult = { ok: true; item: ListItem } | { ok: false; error: string };
+import { customPlaceId, isFoodClass, parseKinds, type FoodClass, type SelectedPlace } from "@/lib/map/restaurants";
 
 const UNIQUE_VIOLATION = "23505";
 
-// Finds or creates the shared restaurant row for a map place (RLS: any signed-in user may insert).
-// User-added places already have a row.
-async function restaurantIdFor(supabase: Awaited<ReturnType<typeof createClient>>, place: SelectedPlace) {
-  const customId = customRestaurantId(place.id);
-  if (customId) {
-    const { data } = await supabase.from("restaurants").select("id").eq("id", customId).eq("user_added", true).maybeSingle();
-    return (data?.id as string | undefined) ?? null;
-  }
-
-  const find = () => supabase.from("restaurants").select("id").eq("osm_id", place.id).maybeSingle();
-
-  const existing = await find();
-  if (existing.data) return existing.data.id as string;
-
-  const inserted = await supabase
-    .from("restaurants")
-    .insert({ osm_id: place.id, name: place.name, kind: place.kind, lat: place.lat, lng: place.lng })
-    .select("id")
-    .single();
-  if (inserted.data) return inserted.data.id as string;
-  // Someone added it between our select and insert.
-  if (inserted.error?.code === UNIQUE_VIOLATION) return ((await find()).data?.id as string) ?? null;
-  return null;
-}
+export type AddResult = { ok: true; item: ListItem } | { ok: false; error: string };
 
 // Puts the place on one of the user's private lists. Already on a list → moves it / updates it.
 // "saved" carries a rating (0–10, optional) and notes; "want" has no rating (notes are kept).

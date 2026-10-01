@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   acceptFriendRequest,
@@ -18,29 +19,39 @@ import { avatarInitial } from "@/lib/profile/avatar";
 import { kindEmoji } from "@/lib/map/restaurants";
 import { badgeText, countNew, markFeedSeen, readFeedSeen, subscribeNothing } from "@/lib/social/seen";
 import { MagnifierIcon } from "@/components/home/search-modal";
+import { GroupsTab } from "@/components/social/groups-tab";
+import type { Group } from "@/app/social/groups";
 
 const DEBOUNCE_MS = 300;
 
 export type SocialTab = "procurar" | "grupos" | "feed";
+const TABS: SocialTab[] = ["procurar", "grupos", "feed"];
+
+// ?tab=… → tab; the Feed when missing or unknown.
+export function parseTab(value: string | null | undefined): SocialTab {
+  return TABS.includes(value as SocialTab) ? (value as SocialTab) : "feed";
+}
 
 type Props = {
-  initialTab: SocialTab;
+  userId: string;
   initialFriends: Friends;
+  initialGroups: Group[];
   feed: FeedItem[];
   username: string | null;
   avatarUrl: string | null;
 };
 
-// "Mordomia Social" (/social): a bottom bar with Procurar (find friends, answer requests), Grupos (soon),
-// Feed (friends' latest additions to their lists) and the avatar (account page).
-export function SocialView({ initialTab, initialFriends, feed, username, avatarUrl }: Props) {
-  const [tab, setTabState] = useState<SocialTab>(initialTab);
-  // The tab is kept in the address (?tab=…) so a pull-to-refresh or reload stays on it.
+// "Mordomia Social" (/social): a bottom bar with Procurar (find friends, answer requests), Grupos (my groups and
+// invites), Feed (friends' latest additions to their lists) and the avatar (account page).
+export function SocialView({ userId, initialFriends, initialGroups, feed, username, avatarUrl }: Props) {
+  // The tab lives in the address (?tab=…), so a refresh, reload or coming back (e.g. from Perfil) stays on it.
+  const tab = parseTab(useSearchParams().get("tab"));
   function setTab(next: SocialTab) {
-    setTabState(next);
     window.history.replaceState(null, "", next === "feed" ? "/social" : `/social?tab=${next}`);
   }
   const [friends, setFriends] = useState<Friends>(initialFriends);
+  const [groups, setGroups] = useState<Group[]>(initialGroups);
+  const invites = groups.filter((group) => group.myStatus === "invited").length;
   const count = friends.friends.length;
   // When the Feed was last seen on this device (read on every render, so it updates after leaving the Feed).
   const seen = useSyncExternalStore(subscribeNothing, readFeedSeen, () => null);
@@ -88,9 +99,13 @@ export function SocialView({ initialTab, initialFriends, feed, username, avatarU
           <FeedTab items={feed} seen={seen} hasFriends={count > 0} onFindFriends={() => setTab("procurar")} />
         )}
         {tab === "grupos" && (
-          <Empty emoji="👥" title="Grupos — em breve">
-            Vais poder criar grupos com amigos e ver os restaurantes de cada grupo.
-          </Empty>
+          <GroupsTab
+            userId={userId}
+            groups={groups}
+            onGroups={setGroups}
+            friends={friends.friends}
+            onFindFriends={() => setTab("procurar")}
+          />
         )}
       </div>
 
@@ -98,6 +113,7 @@ export function SocialView({ initialTab, initialFriends, feed, username, avatarU
         tab={tab}
         onTab={setTab}
         requests={friends.received.length}
+        invites={invites}
         newFeed={newFeed}
         username={username}
         avatarUrl={avatarUrl}
@@ -450,6 +466,8 @@ type BarProps = {
   tab: SocialTab;
   onTab: (tab: SocialTab) => void;
   requests: number;
+  // Group invites not answered yet.
+  invites: number;
   // Feed items not seen on this device yet.
   newFeed: number;
   username: string | null;
@@ -457,13 +475,18 @@ type BarProps = {
 };
 
 // Bottom bar: Procurar, Grupos, Feed, and the avatar (account page).
-function BottomBar({ tab, onTab, requests, newFeed, username, avatarUrl }: BarProps) {
+function BottomBar({ tab, onTab, requests, invites, newFeed, username, avatarUrl }: BarProps) {
   const item = "relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold";
   const tabs: { id: SocialTab; label: string; icon: React.ReactNode }[] = [
     { id: "procurar", label: "Procurar", icon: <MagnifierIcon className="size-6" /> },
     { id: "grupos", label: "Grupos", icon: <GroupIcon /> },
     { id: "feed", label: "Feed", icon: <FeedIcon /> },
   ];
+  const badges: Record<SocialTab, number> = {
+    procurar: requests,
+    grupos: invites,
+    feed: tab === "feed" ? 0 : newFeed,
+  };
   return (
     <nav
       aria-label="Mordomia Social"
@@ -481,9 +504,9 @@ function BottomBar({ tab, onTab, requests, newFeed, username, avatarUrl }: BarPr
             {icon}
             {label}
             {/* No feed badge while on the Feed: it is being read. */}
-            {(id === "procurar" ? requests : id === "feed" && tab !== "feed" ? newFeed : 0) > 0 && (
+            {badges[id] > 0 && (
               <span className="absolute top-1 left-1/2 ml-2 flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white ring-2 ring-white motion-safe:animate-[badge-pop_350ms_ease-out_both]">
-                {badgeText(id === "procurar" ? requests : newFeed)}
+                {badgeText(badges[id])}
               </span>
             )}
           </button>

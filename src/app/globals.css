@@ -78,3 +78,51 @@ body {
     transform: scale(1);
   }
 }
+
+/* Event mordomo dice: tumbles while the name is being drawn. */
+@keyframes dice-roll {
+  0% {
+    transform: translateY(0) rotate(0);
+  }
+  25% {
+    transform: translateY(-14px) rotate(90deg);
+  }
+  50% {
+    transform: translateY(0) rotate(180deg);
+  }
+  75% {
+    transform: translateY(-8px) rotate(270deg);
+  }
+  100% {
+    transform: translateY(0) rotate(360deg);
+  }
+}
+
+/* "Habemus data": confetti falls once over the banner, white smoke rises. */
+@keyframes confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translateY(-24px) rotate(0);
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(190px) rotate(var(--spin, 360deg));
+  }
+}
+
+@keyframes smoke-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.8);
+  }
+  40% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-36px) scale(1.4);
+  }
+}

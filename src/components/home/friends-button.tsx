@@ -7,21 +7,24 @@ import { badgeText, countNew, readFeedSeen, subscribeNothing } from "@/lib/socia
 type Props = {
   // Friend requests received.
   requests: number;
+  // Group invites not answered yet.
+  invites: number;
   // When friends last added to their lists, newest first.
   feedTimes: string[];
 };
 
 // Floating social button (right side, above the fork menu): opens Mordomia Social (/social).
-// The badge counts friend requests plus feed activity not seen on this device; while there is any, the icon rings.
-export function FriendsButton({ requests, feedTimes }: Props) {
+// The badge counts friend requests, group invites and feed activity not seen on this device; while there is any, the icon rings.
+export function FriendsButton({ requests, invites, feedTimes }: Props) {
   const seen = useSyncExternalStore(subscribeNothing, readFeedSeen, () => null);
   const newFeed = countNew(feedTimes, seen);
-  const total = requests + newFeed;
+  const total = requests + invites + newFeed;
   const label =
     total === 0
       ? "Mordomia Social"
       : `Mordomia Social: ${[
           requests > 0 && `${requests} ${requests === 1 ? "pedido de amizade" : "pedidos de amizade"}`,
+          invites > 0 && `${invites} ${invites === 1 ? "convite para um grupo" : "convites para grupos"}`,
           newFeed > 0 && `${newFeed} ${newFeed === 1 ? "novidade" : "novidades"} no feed`,
         ]
           .filter(Boolean)
@@ -29,8 +32,8 @@ export function FriendsButton({ requests, feedTimes }: Props) {
 
   return (
     <Link
-      // Requests are answered on Procurar; otherwise the Feed (the default tab).
-      href={requests > 0 ? "/social?tab=procurar" : "/social"}
+      // Requests are answered on Procurar, group invites on Grupos; otherwise the Feed (the default tab).
+      href={requests > 0 ? "/social?tab=procurar" : invites > 0 ? "/social?tab=grupos" : "/social"}
       aria-label={label}
       className={`relative flex size-12 items-center justify-center rounded-full bg-white shadow-lg transition active:scale-95 ${
         total > 0 ? "text-accent" : "text-foreground"

@@ -17,6 +17,7 @@ import {
 } from "@/lib/map/location";
 import { ALL_LISTS, parseShownLists, shownPlaces, type ShownLists } from "@/lib/map/my-places";
 import { homePhase, type MapStatus } from "@/lib/map/phase";
+import { placeFromSearch } from "@/lib/map/place-link";
 import type { SelectedPlace } from "@/lib/map/restaurants";
 import { AvatarLink } from "./avatar-link";
 import { FlyingCutlery } from "./flying-cutlery";
@@ -34,13 +35,14 @@ import { SearchBar } from "./search-bar";
 import { SearchModal } from "./search-modal";
 import { PlaceDialog } from "./place-dialog";
 import { Toast } from "./toast";
+import type { SocialPulse } from "@/app/social/actions";
 
 type Props = {
   username: string | null;
   avatarUrl: string | null;
   initialList: ListItem[]; initialCustomPlaces: SelectedPlace[];
   // Friend requests received and friends' latest list times, for the social button's badge.
-  socialPulse: { requests: number; feedTimes: string[] } };
+  socialPulse: SocialPulse };
 
 const TOAST_MS = 2500;
 // Which lists show on the map, remembered on this device.
@@ -137,10 +139,15 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces,
 
   const fail = useCallback(() => setMapStatus("failed"), []);
 
-  const onLoad = useCallback(
-    () => setMapStatus((status) => (status === "loading" ? "ready" : status)),
-    [],
-  );
+  const onLoad = useCallback(() => {
+    setMapStatus((status) => (status === "loading" ? "ready" : status));
+    // Opened with "Ver no mapa" (e.g. from an event): show that place, then tidy the address.
+    const linked = placeFromSearch(window.location.search);
+    if (linked) {
+      setSelected(linked);
+      window.history.replaceState(null, "", "/");
+    }
+  }, []);
 
   // AC-7 / Decision #25: fresh reading (same 10 s cap), then move the camera.
   async function recenter() {
@@ -360,7 +367,7 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces,
           className="absolute right-[calc(env(safe-area-inset-right)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] z-20 flex flex-col items-end gap-3"
         >
           {!fabOpen && (
-            <FriendsButton requests={socialPulse.requests} feedTimes={socialPulse.feedTimes} />
+            <FriendsButton requests={socialPulse.requests} invites={socialPulse.invites} feedTimes={socialPulse.feedTimes} />
           )}
           <ListFab
             open={fabOpen}

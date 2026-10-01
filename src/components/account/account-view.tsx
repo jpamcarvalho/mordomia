@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { logout } from "@/app/login/actions";
 import { saveBio, saveDisplayName, setAvatar } from "@/app/account/actions";
@@ -8,6 +8,7 @@ import { Spinner } from "@/components/spinner";
 import { BIO_MAX, DISPLAY_NAME_MAX, levelFor, type AccountStats } from "@/lib/profile/account";
 import { avatarInitial } from "@/lib/profile/avatar";
 import { AVATAR_BUCKET } from "@/lib/profile/load";
+import { toSquareJpeg } from "@/lib/profile/square-photo";
 import { createClient } from "@/lib/supabase/client";
 
 type Props = {
@@ -20,8 +21,6 @@ type Props = {
   stats: AccountStats;
 };
 
-// Photos are cropped to a centered square of this size before upload.
-const AVATAR_SIZE_PX = 512;
 const BIO_EMOJIS = ["🍕", "🍣", "🍷", "☕", "🥐", "🌶️", "🍔", "🥗", "🍰", "🐟"];
 const MEDALS = ["🥇", "🥈", "🥉"];
 
@@ -48,21 +47,8 @@ function useCountUp(value: number, decimals = 0) {
   return shown.toFixed(decimals).replace(".", ",");
 }
 
-async function toSquareJpeg(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
-  const side = Math.min(bitmap.width, bitmap.height);
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = AVATAR_SIZE_PX;
-  canvas
-    .getContext("2d")!
-    .drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, AVATAR_SIZE_PX, AVATAR_SIZE_PX);
-  bitmap.close();
-  return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("encode"))), "image/jpeg", 0.85),
-  );
-}
-
 export function AccountView({ userId, username, displayName, bio, avatarUrl, memberSince, stats }: Props) {
+  const router = useRouter();
   const level = levelFor(stats.went);
   const since = memberSince
     ? new Intl.DateTimeFormat("pt-PT", { month: "long", year: "numeric" }).format(new Date(memberSince))
@@ -71,12 +57,14 @@ export function AccountView({ userId, username, displayName, bio, avatarUrl, mem
   return (
     <main className="min-h-dvh bg-gradient-to-b from-orange-100 via-orange-50/40 to-white pb-[calc(env(safe-area-inset-bottom)+2rem)]">
       <div className="mx-auto flex max-w-md flex-col gap-5 px-5 pt-[calc(env(safe-area-inset-top)+1rem)]">
-        <Link
-          href="/"
+        {/* Back to wherever the account was opened from (map or Mordomia Social); the map when opened directly. */}
+        <button
+          type="button"
+          onClick={() => (window.history.length > 1 ? router.back() : router.push("/"))}
           className="flex w-fit items-center gap-1 rounded-full bg-white/80 px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm backdrop-blur active:scale-95"
         >
-          <span aria-hidden="true">←</span> Voltar ao mapa
-        </Link>
+          <span aria-hidden="true">←</span> Voltar
+        </button>
 
         <section style={delay(0)} className={`flex flex-col items-center text-center ${ENTER}`}>
           <AvatarPicker userId={userId} username={username} initialUrl={avatarUrl} />

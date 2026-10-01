@@ -1,46 +1,19 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
-import { AVATAR_BUCKET } from "@/lib/profile/load";
 import { LIST_STATUSES, isListStatus, type ListStatus } from "@/lib/list/types";
 import { customPlaceId, isFoodClass, parseKinds, type SelectedPlace } from "@/lib/map/restaurants";
+import { PROFILE_COLUMNS, isId, signedIn, toPeople, type Person, type ProfileRow, type Supabase } from "@/lib/social/people";
 
 // Mordomia Social: search people by username or name, send / accept / remove friend requests, friends feed.
 // Privacy is in RLS: any signed-in user can read profiles; a user only sees friendships they are part of.
 
+export type { Person };
 export type Relation = "none" | "friends" | "sent" | "received";
-export type Person = { id: string; username: string; displayName: string; avatarUrl: string | null };
 export type FoundPerson = Person & { relation: Relation };
 export type Friends = { friends: Person[]; received: Person[]; sent: Person[] };
 
-const AVATAR_URL_TTL_S = 60 * 60;
 const SEARCH_LIMIT = 20;
 const QUERY_MAX = 40;
-
-type Supabase = Awaited<ReturnType<typeof createClient>>;
-type ProfileRow = { id: string; username: string; display_name: string; avatar_path: string | null };
-
-async function signedIn(): Promise<{ supabase: Supabase; me: string } | null> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const me = data?.claims?.sub;
-  return typeof me === "string" ? { supabase, me } : null;
-}
-
-async function toPeople(supabase: Supabase, rows: ProfileRow[]): Promise<Person[]> {
-  const paths = rows.map((row) => row.avatar_path).filter((path): path is string => !!path);
-  const urls = new Map<string, string>();
-  if (paths.length) {
-    const { data } = await supabase.storage.from(AVATAR_BUCKET).createSignedUrls(paths, AVATAR_URL_TTL_S);
-    for (const item of data ?? []) if (item.path && item.signedUrl) urls.set(item.path, item.signedUrl);
-  }
-  return rows.map((row) => ({
-    id: row.id,
-    username: row.username,
-    displayName: row.display_name,
-    avatarUrl: row.avatar_path ? (urls.get(row.avatar_path) ?? null) : null,
-  }));
-}
 
 // My friendships, as the other person's id → relation.
 async function relations(supabase: Supabase, me: string): Promise<Map<string, Relation>> {
@@ -61,7 +34,7 @@ export async function loadFriends(): Promise<Friends> {
   if (map.size === 0) return { friends: [], received: [], sent: [] };
   const { data } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_path")
+    .select(PROFILE_COLUMNS)
     .in("id", [...map.keys()])
     .order("display_name");
   const people = await toPeople(supabase, (data ?? []) as ProfileRow[]);
@@ -84,10 +57,9 @@ export async function searchPeople(query: string): Promise<FoundPerson[]> {
   if (!session || q.length < 2) return [];
   const { supabase, me } = session;
   const pattern = likePattern(q);
-  const columns = "id, username, display_name, avatar_path";
-  const [byUsername, byName, map] = await Promise.all([
-    supabase.from("profiles").select(columns).ilike("username", pattern).neq("id", me).limit(SEARCH_LIMIT),
-    supabase.from("profiles").select(columns).ilike("display_name", pattern).neq("id", me).limit(SEARCH_LIMIT),
+    const [byUsername, byName, map] = await Promise.all([
+    supabase.from("profiles").select(PROFILE_COLUMNS).ilike("username", pattern).neq("id", me).limit(SEARCH_LIMIT),
+    supabase.from("profiles").select(PROFILE_COLUMNS).ilike("display_name", pattern).neq("id", me).limit(SEARCH_LIMIT),
     relations(supabase, me),
   ]);
   const rows = new Map<string, ProfileRow>();
@@ -106,13 +78,6 @@ export async function searchPeople(query: string): Promise<FoundPerson[]> {
 }
 
 type Done = { ok: boolean };
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Ids reach PostgREST filters below, so only real UUIDs are accepted.
-function isId(value: unknown): value is string {
-  return typeof value === "string" && UUID_RE.test(value);
-}
 
 // Sends a friend request; if they already asked me, accepts theirs instead.
 export async function sendFriendRequest(personId: string): Promise<Done & { relation?: Relation }> {
@@ -201,7 +166,7 @@ export async function loadFeed(): Promise<FeedItem[]> {
       .in("status", [...LIST_STATUSES])
       .order("updated_at", { ascending: false })
       .limit(FEED_LIMIT),
-    supabase.from("profiles").select("id, username, display_name, avatar_path").in("id", friendIds),
+    supabase.from("profiles").select(PROFILE_COLUMNS).in("id", friendIds),
   ]);
   const people = new Map((await toPeople(supabase, (profiles ?? []) as ProfileRow[])).map((person) => [person.id, person]));
 
@@ -231,16 +196,26 @@ export async function loadFeed(): Promise<FeedItem[]> {
   });
 }
 
-// For the map's social button: friend requests received and when friends last added to their lists (newest
-// first). The client compares those times with when the Feed was last seen on this device.
-export async function loadSocialPulse(): Promise<{ requests: number; feedTimes: string[] }> {
+export type SocialPulse = { requests: number; invites: number; feedTimes: string[] };
+
+// For the map's social button: friend requests and group invites received, and when friends last added to their
+// lists (newest first). The client compares those times with when the Feed was last seen on this device.
+export async function loadSocialPulse(): Promise<SocialPulse> {
   const session = await signedIn();
-  if (!session) return { requests: 0, feedTimes: [] };
+  if (!session) return { requests: 0, invites: 0, feedTimes: [] };
   const { supabase, me } = session;
-  const map = await relations(supabase, me);
+  const [map, { count }] = await Promise.all([
+    relations(supabase, me),
+    supabase
+      .from("group_members")
+      .select("group_id", { count: "exact", head: true })
+      .eq("user_id", me)
+      .eq("status", "invited"),
+  ]);
   const requests = [...map.values()].filter((relation) => relation === "received").length;
+  const invites = count ?? 0;
   const friendIds = [...map].filter(([, relation]) => relation === "friends").map(([id]) => id);
-  if (friendIds.length === 0) return { requests, feedTimes: [] };
+  if (friendIds.length === 0) return { requests, invites, feedTimes: [] };
   const { data } = await supabase
     .from("entries")
     .select("updated_at")
@@ -248,5 +223,5 @@ export async function loadSocialPulse(): Promise<{ requests: number; feedTimes: 
     .in("status", [...LIST_STATUSES])
     .order("updated_at", { ascending: false })
     .limit(FEED_LIMIT);
-  return { requests, feedTimes: (data ?? []).map((row) => row.updated_at as string) };
+  return { requests, invites, feedTimes: (data ?? []).map((row) => row.updated_at as string) };
 }
