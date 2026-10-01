@@ -5,6 +5,7 @@ import { LIST_LABELS, LIST_STATUSES, type ListItem, type ListStatus } from "@/li
 import { searchList } from "@/lib/list/search";
 import { filterByKinds, filterByRating, kindCounts, ratingOptions, sameRatingFilter, type RatingFilter } from "@/lib/list/filter";
 import { kindEmoji, kindLabel, kindsLabel, placeKinds, type FoodClass } from "@/lib/map/restaurants";
+import { ratingColor } from "@/lib/list/rating-color";
 import { CutleryIcon } from "./list-fab";
 import { MagnifierIcon } from "./search-modal";
 
@@ -311,7 +312,7 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
                     <span className="flex items-center gap-2">
                       <span className="truncate text-base font-semibold">{item.name}</span>
                       {item.rating !== null && (
-                        <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-white">
+                        <span style={{ backgroundColor: ratingColor(item.rating) }} className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold text-white">
                           {item.rating}/10
                         </span>
                       )}

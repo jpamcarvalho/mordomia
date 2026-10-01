@@ -6,6 +6,7 @@ import { logout } from "@/app/login/actions";
 import { saveBio, saveDisplayName, setAvatar } from "@/app/account/actions";
 import { Spinner } from "@/components/spinner";
 import { BIO_MAX, DISPLAY_NAME_MAX, levelFor, type AccountStats } from "@/lib/profile/account";
+import { ratingColor } from "@/lib/list/rating-color";
 import { avatarInitial } from "@/lib/profile/avatar";
 import { AVATAR_BUCKET } from "@/lib/profile/load";
 import { toSquareJpeg } from "@/lib/profile/square-photo";
@@ -96,7 +97,7 @@ export function AccountView({ userId, username, displayName, bio, avatarUrl, mem
                     {MEDALS[index]}
                   </span>
                   <span className="min-w-0 flex-1 truncate font-medium">{favourite.name}</span>
-                  <span className="rounded-full bg-accent px-2.5 py-1 text-sm font-bold text-white">
+                  <span style={{ backgroundColor: ratingColor(favourite.rating) }} className="rounded-full px-2.5 py-1 text-sm font-bold text-white">
                     {favourite.rating}/10
                   </span>
                 </li>

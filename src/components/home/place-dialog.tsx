@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { NOTES_MAX, RATING_MAX, RATING_MIN, type EntryDetails } from "@/lib/list/details";
+import { RATING_GRADIENT, ratingColor } from "@/lib/list/rating-color";
 import { LIST_LABELS, type ListItem, type ListStatus } from "@/lib/list/types";
 import { kindEmoji, kindLabel, placeKinds, type SelectedPlace } from "@/lib/map/restaurants";
 
@@ -69,7 +70,14 @@ export function PlaceDialog({ place, current, pending, onChoose, startInForm = f
             {view === "choose" && current && (
               <p className="mt-1 text-sm text-neutral-500">
                 <span aria-hidden="true">✅ </span>Já está em: {LIST_LABELS[current.status]}
-                {isSaved && current.rating !== null && ` · ${current.rating}/10`}
+                {isSaved && current.rating !== null && (
+                  <>
+                    {" · "}
+                    <span style={{ color: ratingColor(current.rating) }} className="font-bold">
+                      {current.rating}/10
+                    </span>
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -130,7 +138,7 @@ export function PlaceDialog({ place, current, pending, onChoose, startInForm = f
                 <legend className="text-sm font-semibold">
                   <span aria-hidden="true">⭐ </span>Que nota lhe dás? <span className="font-normal text-neutral-500">(opcional)</span>
                 </legend>
-                <span aria-live="polite" className="text-2xl font-bold text-accent">
+                <span aria-live="polite" style={rating === null ? undefined : { color: ratingColor(rating) }} className="text-2xl font-bold text-neutral-400 transition-colors">
                   {rating === null ? "–" : rating}
                   <span className="text-sm font-medium text-neutral-400">/10</span>
                 </span>
@@ -147,8 +155,9 @@ export function PlaceDialog({ place, current, pending, onChoose, startInForm = f
                       aria-label={`${value} em 10`}
                       // Tapping the chosen number again clears the rating.
                       onClick={() => setRating(active ? null : value)}
+                      style={active ? { backgroundColor: ratingColor(value) } : { boxShadow: `inset 0 -3px 0 ${ratingColor(value)}` }}
                       className={`h-11 rounded-xl text-base font-semibold transition active:scale-95 ${
-                        active ? "bg-accent text-white shadow" : "bg-neutral-100 text-neutral-700"
+                        active ? "text-white shadow" : "bg-neutral-100 text-neutral-700"
                       }`}
                     >
                       {value}
@@ -156,6 +165,7 @@ export function PlaceDialog({ place, current, pending, onChoose, startInForm = f
                   );
                 })}
               </div>
+              <div aria-hidden="true" style={{ background: RATING_GRADIENT }} className="mt-3 h-1.5 rounded-full" />
             </fieldset>
 
             <label className="flex flex-col gap-2">
