@@ -283,7 +283,7 @@ function PeopleList({ children }: { children: React.ReactNode }) {
 function PersonRow({ person, children }: { person: Person; children: React.ReactNode }) {
   return (
     <li className="flex items-center gap-3 border-b border-neutral-100 px-4 py-3 last:border-0">
-      <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-base font-semibold text-white">
+      <span className="mt-5 flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-semibold text-white">
         {person.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- signed Supabase URL
           <img src={person.avatarUrl} alt="" className="size-full object-cover" />
@@ -399,59 +399,72 @@ function FeedTab({ items, seen, hasFriends, onFindFriends }: FeedProps) {
       </Empty>
     );
   }
+  // Consecutive items from the same person are shown together, like messages in a conversation: one avatar
+  // and name, then a bubble per restaurant.
+  const runs: FeedItem[][] = [];
+  for (const item of items) {
+    const last = runs.at(-1);
+    if (last && last[0].person.id === item.person.id) last.push(item);
+    else runs.push([item]);
+  }
+  let index = 0;
   return (
-    <ul className="flex flex-col gap-3">
-      {items.map((item, index) => {
-        const isNew = countNew([item.at], seen) > 0;
-        return (
-          <li
-            key={item.id}
-            style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}
-            className={`relative rounded-2xl bg-white p-4 shadow-sm ring-1 motion-safe:animate-[fork-pop_260ms_ease-out_both] ${
-              isNew ? "ring-2 ring-accent/50" : "ring-black/5"
-            }`}
-          >
-            {isNew && (
-              <span className="absolute top-3 right-3 rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold text-white motion-safe:animate-[badge-pop_350ms_ease-out_both]">
-                Novo
-              </span>
-            )}
-            <div className="flex items-start gap-3">
-              <Avatar person={item.person} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[15px] leading-snug">
-                  <span className="font-semibold">{item.person.displayName}</span>{" "}
-                  {item.status === "saved" ? "foi a" : "quer ir a"}
-                </p>
-                <p className="mt-0.5 truncate text-lg font-semibold">
-                  <span aria-hidden="true">{kindEmoji(item.place.kind)} </span>
-                  {item.place.name}
-                </p>
-                <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-neutral-500">
-                  <span className={item.status === "saved" ? "font-semibold text-accent" : "font-semibold text-violet-600"}>
-                    {item.status === "saved" ? "⭐ Já foi" : "🤤 Quero ir"}
-                  </span>
-                  {item.status === "saved" && item.rating !== null && <span className="font-semibold text-foreground">{item.rating}/10</span>}
-                  <span aria-hidden="true">·</span>
-                  <time dateTime={item.at}>{timeAgo(item.at)}</time>
-                </p>
-                {item.notes && (
-                  <p className="mt-2 line-clamp-4 rounded-xl bg-neutral-50 px-3 py-2 text-sm whitespace-pre-line text-neutral-700">
-                    {item.notes}
-                  </p>
-                )}
-              </div>
-            </div>
-          </li>
-        );
-      })}
+    <ul className="flex flex-col gap-4">
+      {runs.map((run) => (
+        <li key={run[0].id} className="flex items-start gap-2.5">
+          <Avatar person={run[0].person} />
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 ml-1 text-xs font-semibold text-neutral-500">{run[0].person.displayName}</p>
+            <ul className="flex flex-col gap-1.5">
+              {run.map((item, position) => {
+                const isNew = countNew([item.at], seen) > 0;
+                const delay = Math.min(index++, 8) * 50;
+                return (
+                  <li
+                    key={item.id}
+                    style={{ animationDelay: `${delay}ms` }}
+                    className={`relative rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 motion-safe:animate-[fork-pop_260ms_ease-out_both] ${
+                      position === 0 ? "rounded-tl-md" : ""
+                    } ${isNew ? "ring-2 ring-accent/50" : "ring-black/5"}`}
+                  >
+                    <p className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">
+                        <span aria-hidden="true">{kindEmoji(item.place.kind)} </span>
+                        {item.place.name}
+                      </span>
+                      {isNew && (
+                        <span className="shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-white motion-safe:animate-[badge-pop_350ms_ease-out_both]">
+                          Novo
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-neutral-500">
+                      <span className={item.status === "saved" ? "font-semibold text-accent" : "font-semibold text-violet-600"}>
+                        {item.status === "saved" ? "⭐ Já foi" : "🤤 Quer ir"}
+                      </span>
+                      {item.status === "saved" && item.rating !== null && <span className="font-semibold text-foreground">{item.rating}/10</span>}
+                      <span aria-hidden="true">·</span>
+                      <time dateTime={item.at}>{timeAgo(item.at)}</time>
+                    </p>
+                    {item.notes && (
+                      <p className="mt-1.5 line-clamp-3 rounded-lg bg-neutral-50 px-2.5 py-1.5 text-[13px] whitespace-pre-line text-neutral-700">
+                        {item.notes}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </li>
+      ))}
     </ul>
   );
 }
 
 function Avatar({ person }: { person: Person }) {
   return (
-    <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-base font-semibold text-white">
+    <span className="mt-5 flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-semibold text-white">
       {person.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- signed Supabase URL
         <img src={person.avatarUrl} alt="" className="size-full object-cover" />
