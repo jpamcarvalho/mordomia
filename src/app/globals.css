@@ -48,3 +48,33 @@ body {
     transform: none;
   }
 }
+
+/* Social button with something new: a short ring, then rest (the animation repeats every 4 s). */
+@keyframes social-ring {
+  0%,
+  16%,
+  100% {
+    transform: rotate(0);
+  }
+  2%,
+  10% {
+    transform: rotate(-14deg) scale(1.06);
+  }
+  6%,
+  14% {
+    transform: rotate(14deg) scale(1.06);
+  }
+}
+
+/* Badges: pop in. */
+@keyframes badge-pop {
+  0% {
+    transform: scale(0);
+  }
+  70% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

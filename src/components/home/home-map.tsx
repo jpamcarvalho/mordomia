@@ -29,6 +29,7 @@ import { MapView } from "./map-view";
 import { NewRestaurantModal, type PinFromLink, type RestaurantDraft } from "./new-restaurant-modal";
 import { PinPlacement } from "./pin-placement";
 import { RecenterButton } from "./recenter-button";
+import { FriendsButton } from "./friends-button";
 import { SearchBar } from "./search-bar";
 import { SearchModal } from "./search-modal";
 import { PlaceDialog } from "./place-dialog";
@@ -37,14 +38,16 @@ import { Toast } from "./toast";
 type Props = {
   username: string | null;
   avatarUrl: string | null;
-  initialList: ListItem[]; initialCustomPlaces: SelectedPlace[] };
+  initialList: ListItem[]; initialCustomPlaces: SelectedPlace[];
+  // Friend requests received and friends' latest list times, for the social button's badge.
+  socialPulse: { requests: number; feedTimes: string[] } };
 
 const TOAST_MS = 2500;
 // Which lists show on the map, remembered on this device.
 const SHOWN_KEY = "mordomia.mapLists";
 
 // Home screen orchestrator (design.md → HomeMap state machine; AC-3…AC-12).
-export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces }: Props) {
+export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces, socialPulse }: Props) {
   const [initialView, setInitialView] = useState<LocationState | null>(null);
   const [location, setLocation] = useState<LocationState | null>(null);
   const [mapStatus, setMapStatus] = useState<MapStatus>("loading");
@@ -356,7 +359,9 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
         <div
           className="absolute right-[calc(env(safe-area-inset-right)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] z-20 flex flex-col items-end gap-3"
         >
-          {!fabOpen && <RecenterButton busy={recentering} onClick={recenter} />}
+          {!fabOpen && (
+            <FriendsButton requests={socialPulse.requests} feedTimes={socialPulse.feedTimes} />
+          )}
           <ListFab
             open={fabOpen}
             onToggle={() => setFabOpen((open) => !open)}
@@ -368,6 +373,11 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
               setListOpen(true);
             }}
           />
+        </div>
+      )}
+      {phase === "map" && !placing && !fabOpen && (
+        <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+6.75rem)] left-[calc(env(safe-area-inset-left)+1rem)] z-20">
+          <RecenterButton busy={recentering} onClick={recenter} />
         </div>
       )}
       {phase === "map" && !placing && !fabOpen && !listOpen && !searchOpen && (

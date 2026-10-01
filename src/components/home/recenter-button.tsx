@@ -1,6 +1,6 @@
 "use client";
 
-// Floating recenter button, stacked above the list button (AC-7).
+// Floating recenter button, bottom-left above the search bar (AC-7).
 export function RecenterButton({ busy, onClick }: { busy: boolean; onClick: () => void }) {
   return (
     <button
