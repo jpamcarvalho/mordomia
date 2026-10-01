@@ -3,9 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { parseDetails } from "@/lib/list/details";
 import { isListStatus, type ListItem, type ListStatus } from "@/lib/list/types";
-import { DUPLICATE_RADIUS_M, distanceMeters, parseNewRestaurant, type NewRestaurant } from "@/lib/list/new-restaurant";
+import { DUPLICATE_RADIUS_M, NAME_MAX, distanceMeters, parseNewRestaurant, type NewRestaurant } from "@/lib/list/new-restaurant";
+import { findGoogleMapsLink, isGoogleMapsUrl, parseGoogleMapsUrl, type LinkPlace } from "@/lib/search/google-link";
 import { normalizeName } from "@/lib/search/photon";
-import { customPlaceId, customRestaurantId, isFoodClass, parseKinds, type SelectedPlace } from "@/lib/map/restaurants";
+import { customPlaceId, customRestaurantId, isFoodClass, parseKinds, type FoodClass, type SelectedPlace } from "@/lib/map/restaurants";
 
 export type AddResult = { ok: true; item: ListItem } | { ok: false; error: string };
 
@@ -111,6 +112,10 @@ export type CreateResult =
 export async function createRestaurant(input: Partial<NewRestaurant>): Promise<CreateResult> {
   const restaurant = parseNewRestaurant(input);
   if (!restaurant) return { ok: false, error: "Indica um nome e um tipo, e mantém o pin a menos de 50 m de ti." };
+  return saveRestaurant(restaurant);
+}
+
+async function saveRestaurant(restaurant: { name: string; kinds: FoodClass[]; lat: number; lng: number }): Promise<CreateResult> {
   const { kinds } = restaurant;
   const row = { name: restaurant.name, kind: kinds[0], kinds, lat: restaurant.lat, lng: restaurant.lng };
 
@@ -155,4 +160,55 @@ export async function createRestaurant(input: Partial<NewRestaurant>): Promise<C
   if (error || !data) return { ok: false, error: "Não foi possível adicionar o restaurante." };
 
   return { ok: true, existing: false, place: { id: customPlaceId(data.id as string), ...row } };
+}
+
+const LINK_ERROR = "Não conseguimos ler este link. No Google Maps, abre o restaurante, toca em Partilhar e copia o link.";
+const MAX_REDIRECTS = 5;
+const LINK_TIMEOUT_MS = 5000;
+
+// Reads the place behind a Google Maps link, following short-link redirects. Only Google Maps hosts are fetched,
+// and only their redirect headers are read (never a page body).
+async function resolveGoogleLink(text: string): Promise<LinkPlace | null> {
+  let url = findGoogleMapsLink(text);
+  for (let hop = 0; url && hop <= MAX_REDIRECTS; hop++) {
+    const place = parseGoogleMapsUrl(url);
+    if (place) return place;
+    if (hop === MAX_REDIRECTS) break;
+    try {
+      const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(LINK_TIMEOUT_MS) });
+      const location = res.headers.get("location");
+      if (res.status < 300 || res.status >= 400 || !location) return null;
+      const next = new URL(location, url);
+      url = isGoogleMapsUrl(next) ? next : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export type LinkResult = { ok: true; place: LinkPlace } | { ok: false; error: string };
+
+// Search → pasted Google Maps link: the name and position it points to.
+export async function readGoogleLink(text: string): Promise<LinkResult> {
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims?.claims) return { ok: false, error: "Sessão não iniciada." };
+  if (typeof text !== "string" || text.length > 2000) return { ok: false, error: LINK_ERROR };
+  const place = await resolveGoogleLink(text);
+  return place ? { ok: true, place } : { ok: false, error: LINK_ERROR };
+}
+
+// Adds a restaurant at the position of a Google Maps link (no GPS / pin step). The link is read again here,
+// so the position and name always come from Google, never from the browser. input.name is only used when the
+// link has no name (a dropped pin).
+export async function createRestaurantFromLink(input: { link?: unknown; name?: unknown; kinds?: unknown }): Promise<CreateResult> {
+  const kinds = parseKinds(input?.kinds);
+  if (!kinds || typeof input.link !== "string" || input.link.length > 2000) return { ok: false, error: "Escolhe um tipo." };
+  const place = await resolveGoogleLink(input.link);
+  if (!place) return { ok: false, error: LINK_ERROR };
+  const typed = typeof input.name === "string" ? input.name : "";
+  const name = (place.name ?? typed).trim().replace(/\s+/g, " ").slice(0, NAME_MAX);
+  if (!name) return { ok: false, error: "Indica o nome do restaurante." };
+  return saveRestaurant({ name, kinds, lat: place.lat, lng: place.lng });
 }

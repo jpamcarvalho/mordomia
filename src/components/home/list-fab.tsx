@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode, type Ref } from "react";
-import { MagnifierIcon } from "./search-modal";
 
 type Props = {
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
-  count: number;
   onShowList: () => void;
-  onSearch: () => void;
   onNewRestaurant: () => void;
   // The round button itself (target of the "added" animation).
   buttonRef?: Ref<HTMLButtonElement>;
@@ -21,11 +18,10 @@ type ItemProps = {
   onClick: () => void;
   // Stagger: the item nearest the button pops first.
   delayMs: number;
-  badge?: number;
 };
 
 // One fork menu option. All options share the same size.
-function MenuItem({ icon, label, onClick, delayMs, badge }: ItemProps) {
+function MenuItem({ icon, label, onClick, delayMs }: ItemProps) {
   return (
     <button
       role="menuitem"
@@ -38,23 +34,16 @@ function MenuItem({ icon, label, onClick, delayMs, badge }: ItemProps) {
         {icon}
       </span>
       <span className="flex-1">{label}</span>
-      {badge !== undefined && badge > 0 && (
-        <span className="min-w-6 rounded-full bg-accent px-1.5 py-0.5 text-center text-xs font-bold text-white">
-          {badge}
-        </span>
-      )}
     </button>
   );
 }
 
-// The fork menu: round knife-and-fork button (bottom-right). Tapping it pops Search, New restaurant and My list up above it.
+// The fork menu: round knife-and-fork button (bottom-right). Tapping it pops New restaurant and My list up above it.
 export function ListFab({
   open,
   onToggle,
   onClose,
-  count,
   onShowList,
-  onSearch,
   onNewRestaurant,
   buttonRef,
 }: Props) {
@@ -87,9 +76,8 @@ export function ListFab({
             className="fixed inset-0 -z-10 bg-black/25 motion-safe:animate-[fade-in_150ms_ease-out]"
           />
           <div role="menu" aria-label="Lista" className="flex flex-col items-end gap-2.5">
-            <MenuItem icon={<MagnifierIcon className="size-5" />} label="Pesquisar" onClick={onSearch} delayMs={80} />
             <MenuItem icon={<PinPlusIcon />} label="Novo restaurante" onClick={onNewRestaurant} delayMs={40} />
-            <MenuItem icon={<ListIcon />} label="A minha lista" onClick={onShowList} delayMs={0} badge={count} />
+            <MenuItem icon={<ListIcon />} label="A minha lista" onClick={onShowList} delayMs={0} />
           </div>
         </>
       )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { addToList, createRestaurant, removeFromList } from "@/app/(home)/actions";
+import { addToList, createRestaurant, createRestaurantFromLink, removeFromList, type CreateResult } from "@/app/(home)/actions";
 import { Splash } from "@/components/splash";
 import type { EntryDetails } from "@/lib/list/details";
 import { PIN_RANGE_M } from "@/lib/list/new-restaurant";
@@ -29,6 +29,7 @@ import { MapView } from "./map-view";
 import { NewRestaurantModal, type RestaurantDraft } from "./new-restaurant-modal";
 import { PinPlacement } from "./pin-placement";
 import { RecenterButton } from "./recenter-button";
+import { SearchBar } from "./search-bar";
 import { SearchModal } from "./search-modal";
 import { PlaceDialog } from "./place-dialog";
 import { Toast } from "./toast";
@@ -51,6 +52,8 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
   const [recentering, setRecentering] = useState(false);
   const [camera, setCamera] = useState<Camera | null>(null);
   const [selected, setSelected] = useState<SelectedPlace | null>(null);
+  // A place just added from a link to "Minha lista": its popup opens on the rating form.
+  const [formFirstId, setFormFirstId] = useState<string | null>(null);
   const [list, setList] = useState<ListItem[]>(initialList);
   const [fabOpen, setFabOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
@@ -162,6 +165,48 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
     setDraft({ name, kinds: ["restaurant"] });
   }
 
+  // From a Google Maps link straight onto a list. "Quero ir!" is saved here; "Minha lista" opens the place on
+  // its rating + notes form, like the popup does.
+  function createFromLink({ status, ...next }: RestaurantDraft & { link: string; status: ListStatus }, origin: DOMRect) {
+    startCreating(async () => {
+      const result = await createRestaurantFromLink(next);
+      if (!result.ok) {
+        setToast(result.error);
+        return;
+      }
+      const { place, existing } = result;
+      if (!existing) setCustomPlaces((places) => [...places, place]);
+      setDraft(null);
+      if (status === "saved") {
+        setFormFirstId(place.id);
+        setSelected(place);
+        return;
+      }
+      const added = await addToList(place, "want");
+      if (!added.ok) {
+        setToast(added.error);
+        setSelected(place);
+        return;
+      }
+      setList((items) => [added.item, ...items.filter((item) => item.entryId !== added.item.entryId)]);
+      setToast(`🤤 ${place.name} está no Quero ir!`);
+      setCamera({ center: { lat: place.lat, lng: place.lng }, zoom: 16 });
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setFlight({ x: origin.left + origin.width / 2, y: origin.top + origin.height / 2 });
+      }
+    });
+  }
+
+  // After a new restaurant is saved (pin or link): show it, celebrate, and open it so it can go onto a list.
+  function added({ place, existing }: Extract<CreateResult, { ok: true }>, origin: DOMRect | null) {
+    if (!existing) setCustomPlaces((places) => [...places, place]);
+    setToast(existing ? `${place.name} já está no mapa` : `${place.name} adicionado ao mapa`);
+    if (origin && !existing && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setFlight({ x: origin.left + origin.width / 2, y: origin.top + origin.height / 2 });
+    }
+    setSelected(place);
+  }
+
   function startPlacing(next: RestaurantDraft & { gps: LatLng }) {
     setDraft(null);
     setPlacing(next);
@@ -191,21 +236,15 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
         setToast(result.error);
         return;
       }
-      const { place, existing } = result;
-      if (!existing) setCustomPlaces((places) => [...places, place]);
       stopPlacing();
-      setToast(existing ? `${place.name} já está no mapa` : `${place.name} adicionado ao mapa`);
-      if (!existing && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        setFlight({ x: origin.left + origin.width / 2, y: origin.top + origin.height / 2 });
-      }
-      // Open it so it can go straight onto a list.
-      setSelected(place);
+      added(result, origin);
     });
   }
   const selectedItem = selected ? (list.find((item) => item.placeId === selected.id) ?? null) : null;
 
   function choose(status: ListStatus, details: EntryDetails | undefined, origin: DOMRect) {
     if (!selected || adding) return;
+    setFormFirstId(null);
     const place = selected;
     setPendingStatus(status);
     startAdding(async () => {
@@ -272,7 +311,11 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
           current={selectedItem}
           pending={pendingStatus}
           onChoose={choose}
-          onClose={() => setSelected(null)}
+          startInForm={formFirstId === selected.id}
+          onClose={() => {
+            setSelected(null);
+            setFormFirstId(null);
+          }}
         />
       )}
       {phase === "map" && !placing && (
@@ -284,20 +327,22 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
             open={fabOpen}
             onToggle={() => setFabOpen((open) => !open)}
             onClose={closeFab}
-            count={list.length}
             buttonRef={fabRef}
             onNewRestaurant={() => openNew("")}
-            onSearch={() => {
-              setFabOpen(false);
-              setListOpen(false);
-              setSearchOpen(true);
-            }}
             onShowList={() => {
               setFabOpen(false);
               setListOpen(true);
             }}
           />
         </div>
+      )}
+      {phase === "map" && !placing && !fabOpen && !listOpen && !searchOpen && (
+        <SearchBar
+          onOpen={() => {
+            setSelected(null);
+            setSearchOpen(true);
+          }}
+        />
       )}
       {phase === "map" && listOpen && (
         <ListPanel
@@ -320,7 +365,13 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
         />
       )}
       {phase === "map" && draft !== null && (
-        <NewRestaurantModal initial={draft} onNext={startPlacing} onClose={closeNew} />
+        <NewRestaurantModal
+          initial={draft}
+          onNext={startPlacing}
+          saving={creating}
+          onSave={createFromLink}
+          onClose={closeNew}
+        />
       )}
       {phase === "map" && placing && pin && (
         <PinPlacement

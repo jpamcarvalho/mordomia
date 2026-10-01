@@ -110,6 +110,23 @@ export function SearchModal({ near, onPick, onAddNew, onClose }: Props) {
             onChange={(event) => setQuery(event.target.value)}
             className="h-14 min-w-0 flex-1 bg-transparent text-base outline-none"
           />
+          {query && (
+            <button
+              type="button"
+              aria-label="Apagar texto"
+              // Keeps the keyboard open on phones: the input never loses focus.
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                setQuery("");
+                setResults([]);
+                setStatus("idle");
+                inputRef.current?.focus();
+              }}
+              className="flex h-7 shrink-0 items-center rounded-full bg-neutral-100 px-3 text-xs font-semibold text-neutral-600 active:bg-neutral-200"
+            >
+              Apagar
+            </button>
+          )}
           <button type="button" aria-label="Fechar" onClick={onClose} className="-m-1 p-1 leading-none text-neutral-500">
             ✕
           </button>

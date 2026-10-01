@@ -13,6 +13,8 @@ type Props = {
   pending: ListStatus | null;
   // origin: the tapped button, where the "added" animation starts.
   onChoose: (status: ListStatus, details: EntryDetails | undefined, origin: DOMRect) => void;
+  // Open straight on the rating + notes form (a restaurant just added from a link to "Minha lista").
+  startInForm?: boolean;
   onClose: () => void;
 };
 
@@ -20,8 +22,8 @@ const RATINGS = Array.from({ length: RATING_MAX - RATING_MIN + 1 }, (_, i) => RA
 
 // Centered dialog for the restaurant tapped on the map: put it on one of the two lists.
 // "Adiciona à minha lista" first opens a form with a 0–10 rating and notes.
-export function PlaceDialog({ place, current, pending, onChoose, onClose }: Props) {
-  const [view, setView] = useState<"choose" | "form">("choose");
+export function PlaceDialog({ place, current, pending, onChoose, startInForm = false, onClose }: Props) {
+  const [view, setView] = useState<"choose" | "form">(startInForm ? "form" : "choose");
   const [rating, setRating] = useState<number | null>(current?.status === "saved" ? current.rating : null);
   const [notes, setNotes] = useState(current?.notes ?? "");
 
