@@ -290,6 +290,13 @@ READMEs — this section is their only documentation):
   one "at least N" option per rating the user actually gave, best first, plus "Sem nota"; results sorted best first).
   Options come only from the restaurants on the current tab/search; a chosen value that is not present there is
   ignored. The Nota filter never applies to "Quero ir!". Logic in `src/lib/list/filter.ts`.
+- **My list on the map:** the user's own entries are drawn on the home map (`MapView` layers `my-places-dots` /
+  `my-places-labels`, all zooms, names from zoom 12) as dots colored by list — **⭐ Já fui** (`saved`) `#c2410c`,
+  **🤤 Quero ir** (`want`) `#7c3aed` — above every other pin; the regular OSM / user-added pin of a listed place is
+  hidden so each place shows once (a place on both lists shows as Já fui). Two top-left chips (`ListChips`, shown when
+  the list is not empty) are the legend and show/hide each list; the choice is remembered on the device
+  (`localStorage` `mordomia.mapLists`). Tapping a dot opens `PlaceDialog`. Hidden while placing a new restaurant.
+  Logic in `src/lib/map/my-places.ts`. Data is the already-loaded own list (no new query, no RLS change).
 - **Search** (`SearchModal` → `/api/search`): Photon + user-added, with the **country picker** (§8); "Não o
   encontras?" starts a new restaurant with the typed name.
 - **New restaurant:** name, **one or more types** (first chosen = main type/icon), a fresh GPS fix, then

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { addToList, createRestaurant, removeFromList } from "@/app/(home)/actions";
 import { Splash } from "@/components/splash";
 import type { EntryDetails } from "@/lib/list/details";
@@ -15,10 +15,12 @@ import {
   type LocationResult,
   type LocationState,
 } from "@/lib/map/location";
+import { ALL_LISTS, parseShownLists, shownPlaces, type ShownLists } from "@/lib/map/my-places";
 import { homePhase, type MapStatus } from "@/lib/map/phase";
 import type { SelectedPlace } from "@/lib/map/restaurants";
 import { AvatarLink } from "./avatar-link";
 import { FlyingCutlery } from "./flying-cutlery";
+import { ListChips } from "./list-chips";
 import { ListFab } from "./list-fab";
 import { ListPanel } from "./list-panel";
 import { LocationNotice } from "./location-notice";
@@ -37,6 +39,8 @@ type Props = {
   initialList: ListItem[]; initialCustomPlaces: SelectedPlace[] };
 
 const TOAST_MS = 2500;
+// Which lists show on the map, remembered on this device.
+const SHOWN_KEY = "mordomia.mapLists";
 
 // Home screen orchestrator (design.md → HomeMap state machine; AC-3…AC-12).
 export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces }: Props) {
@@ -66,6 +70,7 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
   const [toast, setToast] = useState<string | null>(null);
   // "Added" animation: a knife and fork flies from this point into the fork menu.
   const [flight, setFlight] = useState<{ x: number; y: number } | null>(null);
+  const [shown, setShown] = useState<ShownLists>(savedShownLists);
   const fabRef = useRef<HTMLButtonElement>(null);
   const requested = useRef(false);
   // Latest location for async callbacks (late reading, recenter) that outlive the render they started in.
@@ -99,6 +104,27 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
       updateLocation(view);
     });
   }, [applyReading, updateLocation]);
+
+  function toggleList(status: ListStatus) {
+    setShown((current) => {
+      const next = { ...current, [status]: !current[status] };
+      try {
+        localStorage.setItem(SHOWN_KEY, JSON.stringify(next));
+      } catch {
+        // Not remembered, still applied.
+      }
+      return next;
+    });
+  }
+
+  const myPlaces = useMemo(() => shownPlaces(list, shown), [list, shown]);
+  const listCounts = useMemo(
+    () => ({
+      saved: list.filter((item) => item.status === "saved").length,
+      want: list.filter((item) => item.status === "want").length,
+    }),
+    [list],
+  );
 
   const fail = useCallback(() => setMapStatus("failed"), []);
 
@@ -208,7 +234,7 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
 
   function pick(item: ListItem) {
     setListOpen(false);
-    setSelected({ id: item.placeId, name: item.name, kind: item.kind ?? "restaurant", kinds: item.kinds, lat: item.lat, lng: item.lng });
+    setSelected(toPlace(item));
   }
 
   return (
@@ -220,15 +246,21 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
           camera={camera}
           selected={selected}
           customPlaces={customPlaces}
+          myPlaces={placing ? [] : myPlaces}
           placement={placement}
           onPlacementMove={setPin}
           onLoad={onLoad}
           onError={fail}
           onSelect={(place) => {
-            setSelected(place);
+            // A tapped list dot carries only the main type; take the full place from the list.
+            const item = place && list.find((other) => other.placeId === place.id);
+            setSelected(item ? toPlace(item) : place);
             setListOpen(false);
           }}
         />
+      )}
+      {phase === "map" && !placing && list.length > 0 && (
+        <ListChips shown={shown} counts={listCounts} onToggle={toggleList} />
       )}
       {phase === "map" && location?.showNotice && !noticeDismissed && (
         <LocationNotice onDismiss={() => setNoticeDismissed(true)} />
@@ -313,4 +345,17 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
       {phase === "splash" && <Splash />}
     </main>
   );
+}
+
+// The chips and list dots only render on the client (after the location reading), so the server value is never shown.
+function savedShownLists(): ShownLists {
+  try {
+    return typeof window === "undefined" ? ALL_LISTS : parseShownLists(localStorage.getItem(SHOWN_KEY));
+  } catch {
+    return ALL_LISTS;
+  }
+}
+
+function toPlace(item: ListItem): SelectedPlace {
+  return { id: item.placeId, name: item.name, kind: item.kind ?? "restaurant", kinds: item.kinds, lat: item.lat, lng: item.lng };
 }

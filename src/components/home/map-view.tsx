@@ -7,12 +7,18 @@ import { MAP_STYLE_URL, toMapLibreZoom } from "@/lib/map/config";
 import type { Camera, LatLng, LocationState } from "@/lib/map/location";
 import { circleRing } from "@/lib/list/new-restaurant";
 import { FOOD_CLASSES, toSelectedPlace, type SelectedPlace } from "@/lib/map/restaurants";
+import type { ListItem } from "@/lib/list/types";
+import { myPlacesData, STATUS_COLORS } from "@/lib/map/my-places";
 
 const FOOD_LAYER = "food-poi";
 // Restaurants added by users (not in OpenStreetMap), from our database.
 const CUSTOM_SOURCE = "custom-places";
 const CUSTOM_LAYER = "custom-poi";
-const PLACE_LAYERS = [CUSTOM_LAYER, FOOD_LAYER];
+// The user's own list places, colored by list, drawn above every other pin.
+const MY_SOURCE = "my-places";
+const MY_DOTS = "my-places-dots";
+const MY_LABELS = "my-places-labels";
+const PLACE_LAYERS = [MY_DOTS, MY_LABELS, CUSTOM_LAYER, FOOD_LAYER];
 // Allowed area while placing a new restaurant's pin.
 const RANGE_SOURCE = "pin-range";
 const RANGE_LAYERS = ["pin-range-fill", "pin-range-line"];
@@ -31,6 +37,8 @@ type Props = {
   camera: Camera | null;
   selected: SelectedPlace | null;
   customPlaces: SelectedPlace[];
+  // The user's list places to draw (already filtered by the shown lists).
+  myPlaces: ListItem[];
   // Placing a new restaurant: camera goes to gps and the range circle is drawn. A new object re-centers (Reset).
   placement: { gps: LatLng; radiusM: number } | null;
   // The pin is the map center; reported on every move while placing.
@@ -94,6 +102,52 @@ function addCustomLayer(map: maplibregl.Map, places: SelectedPlace[]) {
   });
 }
 
+const STATUS_COLOR = ["match", ["get", "status"], "want", STATUS_COLORS.want, STATUS_COLORS.saved] as maplibregl.ExpressionSpecification;
+
+function addMyPlacesLayers(map: maplibregl.Map, places: ListItem[]) {
+  map.addSource(MY_SOURCE, { type: "geojson", data: myPlacesData(places) });
+  map.addLayer({
+    id: MY_DOTS,
+    type: "circle",
+    source: MY_SOURCE,
+    paint: {
+      "circle-color": STATUS_COLOR,
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 12, 6, 16, 9],
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-width": 2,
+    },
+  });
+  map.addLayer({
+    id: MY_LABELS,
+    type: "symbol",
+    source: MY_SOURCE,
+    minzoom: 12,
+    layout: {
+      "text-field": ["get", "name"],
+      "text-font": ["Noto Sans Bold"],
+      "text-size": 12,
+      "text-anchor": "top",
+      "text-offset": [0, 0.9],
+      "text-max-width": 8,
+      "text-optional": true,
+    },
+    paint: { "text-color": STATUS_COLOR, "text-halo-color": "#ffffff", "text-halo-width": 1.5 },
+  });
+}
+
+// Hides the regular pin of places already drawn as the user's own, so each place shows once.
+function hideListedPins(map: maplibregl.Map, places: ListItem[]) {
+  const ids: maplibregl.ExpressionSpecification = ["literal", places.map((place) => place.placeId)];
+  if (map.getLayer(FOOD_LAYER))
+    map.setFilter(FOOD_LAYER, [
+      "all",
+      ["match", ["get", "class"], [...FOOD_CLASSES], true, false],
+      ["!", ["in", ["to-string", ["id"]], ids]],
+    ]);
+  if (map.getLayer(CUSTOM_LAYER))
+    map.setFilter(CUSTOM_LAYER, ["!", ["in", ["get", "placeId"], ids]]);
+}
+
 function rangeData(center: LatLng, radiusM: number): GeoJSON.Feature {
   return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [circleRing(center, radiusM)] } };
 }
@@ -133,6 +187,7 @@ export function MapView({
   camera,
   selected,
   customPlaces,
+  myPlaces,
   placement,
   onPlacementMove,
   onLoad,
@@ -153,6 +208,15 @@ export function MapView({
     const source = mapRef.current?.getSource(CUSTOM_SOURCE) as maplibregl.GeoJSONSource | undefined;
     source?.setData(customPlacesData(customPlaces));
   }, [customPlaces]);
+  const myRef = useRef(myPlaces);
+  useEffect(() => {
+    myRef.current = myPlaces;
+    const map = mapRef.current;
+    const source = map?.getSource(MY_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    if (!map || !source) return;
+    source.setData(myPlacesData(myPlaces));
+    hideListedPins(map, myPlaces);
+  }, [myPlaces]);
   useEffect(() => {
     handlers.current = { onLoad, onError, onSelect, onPlacementMove };
   });
@@ -179,6 +243,8 @@ export function MapView({
     map.on("style.load", () => {
       if (!map.getLayer(FOOD_LAYER)) addFoodLayer(map);
       if (!map.getLayer(CUSTOM_LAYER)) addCustomLayer(map, customRef.current);
+      if (!map.getLayer(MY_DOTS)) addMyPlacesLayers(map, myRef.current);
+      hideListedPins(map, myRef.current);
     });
     map.on("load", () => {
       loaded = true;
