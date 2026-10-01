@@ -26,7 +26,7 @@ import { ListPanel } from "./list-panel";
 import { LocationNotice } from "./location-notice";
 import { MapError } from "./map-error";
 import { MapView } from "./map-view";
-import { NewRestaurantModal, type RestaurantDraft } from "./new-restaurant-modal";
+import { NewRestaurantModal, type PinFromLink, type RestaurantDraft } from "./new-restaurant-modal";
 import { PinPlacement } from "./pin-placement";
 import { RecenterButton } from "./recenter-button";
 import { SearchBar } from "./search-bar";
@@ -63,8 +63,11 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
   // Adding a restaurant — step 1: the form (draft = its values; null = closed).
   const [draft, setDraft] = useState<RestaurantDraft | null>(null);
   // Step 2: placing the pin near the user's position. `pin` follows the map center.
-  const [placing, setPlacing] = useState<(RestaurantDraft & { gps: LatLng }) | null>(null);
-  const [placement, setPlacement] = useState<{ gps: LatLng; radiusM: number } | null>(null);
+  // fromLink: placing a restaurant from a Google Maps link that had no position (no range limit).
+  const [placing, setPlacing] = useState<
+    (RestaurantDraft & { gps: LatLng; fromLink?: { link: string; status: ListStatus; address: string | null } }) | null
+  >(null);
+  const [placement, setPlacement] = useState<{ gps: LatLng; radiusM: number | null; zoom?: number } | null>(null);
   const [pin, setPin] = useState<LatLng | null>(null);
   const [creating, startCreating] = useTransition();
   const [removing, setRemoving] = useState<string | null>(null);
@@ -167,7 +170,32 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
 
   // From a Google Maps link straight onto a list. "Quero ir!" is saved here; "Minha lista" opens the place on
   // its rating + notes form, like the popup does.
-  function createFromLink({ status, ...next }: RestaurantDraft & { link: string; status: ListStatus }, origin: DOMRect) {
+  function createFromLink(
+    { status, needsPin, ...next }: RestaurantDraft & { link: string; status: ListStatus; needsPin: PinFromLink | null },
+    origin: DOMRect,
+  ) {
+    if (needsPin) {
+      startPlacingFromLink({ ...next, status }, needsPin);
+      return;
+    }
+    saveFromLink(next, status, origin);
+  }
+
+  // A link without a position: place the pin anywhere, starting at the address guess (or the current area).
+  function startPlacingFromLink(next: RestaurantDraft & { link: string; status: ListStatus }, { start, address }: PinFromLink) {
+    const at = start ?? location?.userPosition ?? location?.center;
+    if (!at) return;
+    setDraft(null);
+    setPlacing({ name: next.name, kinds: next.kinds, gps: at, fromLink: { link: next.link, status: next.status, address } });
+    setPin(at);
+    setPlacement({ gps: at, radiusM: null, zoom: start ? 17 : 15 });
+  }
+
+  function saveFromLink(
+    next: RestaurantDraft & { link: string; lat?: number; lng?: number },
+    status: ListStatus,
+    origin: DOMRect,
+  ) {
     startCreating(async () => {
       const result = await createRestaurantFromLink(next);
       if (!result.ok) {
@@ -177,6 +205,7 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
       const { place, existing } = result;
       if (!existing) setCustomPlaces((places) => [...places, place]);
       setDraft(null);
+      stopPlacing();
       if (status === "saved") {
         setFormFirstId(place.id);
         setSelected(place);
@@ -222,6 +251,11 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
 
   function create(origin: DOMRect) {
     if (!placing || !pin) return;
+    if (placing.fromLink) {
+      const { link, status } = placing.fromLink;
+      saveFromLink({ name: placing.name, kinds: placing.kinds, link, lat: pin.lat, lng: pin.lng }, status, origin);
+      return;
+    }
     const restaurant = {
       name: placing.name,
       kinds: placing.kinds,
@@ -381,11 +415,16 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces 
           pin={pin}
           saving={creating}
           onConfirm={create}
-          onRecenter={() => setPlacement({ gps: placing.gps, radiusM: PIN_RANGE_M })}
+          free={placing.fromLink ? { address: placing.fromLink.address } : undefined}
+          onRecenter={() =>
+            setPlacement(
+              placing.fromLink ? { gps: placing.gps, radiusM: null, zoom: 17 } : { gps: placing.gps, radiusM: PIN_RANGE_M },
+            )
+          }
           onBack={() => {
-            const { name, kinds } = placing;
+            const { name, kinds, fromLink } = placing;
             stopPlacing();
-            setDraft({ name, kinds });
+            setDraft({ name, kinds, link: fromLink?.link });
           }}
         />
       )}

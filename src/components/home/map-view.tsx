@@ -40,7 +40,8 @@ type Props = {
   // The user's list places to draw (already filtered by the shown lists).
   myPlaces: ListItem[];
   // Placing a new restaurant: camera goes to gps and the range circle is drawn. A new object re-centers (Reset).
-  placement: { gps: LatLng; radiusM: number } | null;
+  // radiusM null: no range (a restaurant from a link is placed anywhere); zoom: starting zoom (MapLibre scale).
+  placement: { gps: LatLng; radiusM: number | null; zoom?: number } | null;
   // The pin is the map center; reported on every move while placing.
   onPlacementMove: (center: LatLng) => void;
   onLoad: () => void;
@@ -305,11 +306,12 @@ export function MapView({
       hideRange(map);
       return;
     }
-    showRange(map, placement.gps, placement.radiusM);
+    if (placement.radiusM === null) hideRange(map);
+    else showRange(map, placement.gps, placement.radiusM);
     // No padding: the pin drawn in the middle of the screen must be the map center.
     map.easeTo({
       center: [placement.gps.lng, placement.gps.lat],
-      zoom: PLACEMENT_ZOOM,
+      zoom: placement.zoom ?? PLACEMENT_ZOOM,
       padding: { top: 0, bottom: 0, left: 0, right: 0 },
       duration: 600,
     });

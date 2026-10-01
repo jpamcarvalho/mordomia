@@ -14,19 +14,21 @@ type Props = {
   onConfirm: (origin: DOMRect) => void;
   onRecenter: () => void;
   onBack: () => void;
+  // From a Google Maps link without a position: no distance limit; shows the link's address instead.
+  free?: { address: string | null };
 };
 
 // Step 2 of adding a restaurant: the pin stays in the middle of the screen and the user moves the map under it,
 // up to PIN_RANGE_M from their position (the dashed circle drawn by MapView).
-export function PinPlacement({ name, kind, gps, pin, saving, onConfirm, onRecenter, onBack }: Props) {
+export function PinPlacement({ name, kind, gps, pin, saving, onConfirm, onRecenter, onBack, free }: Props) {
   const distance = Math.round(distanceMeters(gps, pin));
-  const tooFar = distance > PIN_RANGE_M;
+  const tooFar = !free && distance > PIN_RANGE_M;
 
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top)+1rem)] z-30 flex justify-center px-4">
         <p className="rounded-full bg-neutral-900/85 px-4 py-2 text-sm text-white shadow-lg">
-          Move o mapa para pôr o pin na entrada
+          {free ? "Move o mapa para pôr o pin no restaurante" : "Move o mapa para pôr o pin na entrada"}
         </p>
       </div>
 
@@ -54,11 +56,13 @@ export function PinPlacement({ name, kind, gps, pin, saving, onConfirm, onRecent
             <div className="min-w-0 flex-1">
               <p className="truncate text-lg font-semibold">{name}</p>
               <p role="status" className={`text-sm ${tooFar ? "font-medium text-red-600" : "text-neutral-500"}`}>
-                {tooFar
-                  ? `A ${distance} m de ti — mantém-no a menos de ${PIN_RANGE_M} m`
-                  : distance === 0
-                    ? "Mesmo onde estás"
-                    : `A ${distance} m de ti`}
+                {free
+                  ? (free.address ?? "Procura o restaurante no mapa")
+                  : tooFar
+                    ? `A ${distance} m de ti — mantém-no a menos de ${PIN_RANGE_M} m`
+                    : distance === 0
+                      ? "Mesmo onde estás"
+                      : `A ${distance} m de ti`}
               </p>
             </div>
             <button

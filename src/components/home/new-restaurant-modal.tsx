@@ -4,12 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { NAME_MAX, PIN_RANGE_M } from "@/lib/list/new-restaurant";
 import type { LatLng } from "@/lib/map/location";
 import { FOOD_CLASSES, kindEmoji, kindLabel, type FoodClass } from "@/lib/map/restaurants";
-import { findGoogleMapsLink, type LinkPlace } from "@/lib/search/google-link";
+import { findGoogleMapsLink, isGoogleSearchShare, type LinkPlace } from "@/lib/search/google-link";
 import { readGoogleLink } from "@/app/(home)/actions";
 import type { ListStatus } from "@/lib/list/types";
 
-// kinds: main (first chosen) first.
-export type RestaurantDraft = { name: string; kinds: FoodClass[] };
+// kinds: main (first chosen) first. link: reopen on the Google Maps tab with this link (back from the pin step).
+export type RestaurantDraft = { name: string; kinds: FoodClass[]; link?: string };
+
+// A link without a position: the user places the pin, starting at start (a rough spot for the address).
+export type PinFromLink = { start: LatLng | null; address: string | null };
 
 type Props = {
   initial: RestaurantDraft;
@@ -17,7 +20,10 @@ type Props = {
   onNext: (draft: RestaurantDraft & { gps: LatLng }) => void;
   // "Google Maps": the link gives the name and position (no GPS or pin step); saved right away onto a list.
   // origin: the tapped button, where the "added" animation starts.
-  onSave: (draft: RestaurantDraft & { link: string; status: ListStatus }, origin: DOMRect) => void;
+  onSave: (
+    draft: RestaurantDraft & { link: string; status: ListStatus; needsPin: PinFromLink | null },
+    origin: DOMRect,
+  ) => void;
   saving: boolean;
   onClose: () => void;
 };
@@ -31,6 +37,8 @@ type LinkState =
   | { status: "error"; message: string };
 
 const LINK_DEBOUNCE_MS = 300;
+const SEARCH_SHARE =
+  "Este tipo de link não é suportado. Abre o restaurante na app Google Maps, toca em Partilhar e copia o link de lá.";
 const NOT_A_LINK = "Isto não é um link do Google Maps. No Google Maps, abre o restaurante, toca em Partilhar e copia o link.";
 
 type Fix =
@@ -52,9 +60,9 @@ const ERRORS: Record<number, string> = {
 // Step 1 of adding a restaurant that isn't on the map: name, type and the user's position.
 // Step 2 (PinPlacement) puts the pin on the exact spot.
 export function NewRestaurantModal({ initial, onNext, onSave, saving, onClose }: Props) {
-  const [mode, setMode] = useState<Mode>("gps");
+  const [mode, setMode] = useState<Mode>(initial.link ? "link" : "gps");
   const [name, setName] = useState(initial.name);
-  const [link, setLink] = useState("");
+  const [link, setLink] = useState(initial.link ?? "");
   const [linkState, setLinkState] = useState<LinkState>({ status: "idle" });
   const fixRequested = useRef(false);
   // The list button tapped while saving from a link.
@@ -98,6 +106,10 @@ export function NewRestaurantModal({ initial, onNext, onSave, saving, onClose }:
     if (mode !== "link" || !text) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
+      if (isGoogleSearchShare(text)) {
+        setLinkState({ status: "error", message: SEARCH_SHARE });
+        return;
+      }
       if (!findGoogleMapsLink(text)) {
         setLinkState({ status: "error", message: NOT_A_LINK });
         return;
@@ -129,6 +141,9 @@ export function NewRestaurantModal({ initial, onNext, onSave, saving, onClose }:
   const fromLink = mode === "link";
   // From a link the name is the place's title on Google Maps; only a link without one (a dropped pin) asks for it.
   const linkName = linkState.status === "ok" ? linkState.place.name : null;
+  const linkPlace = linkState.status === "ok" ? linkState.place : null;
+  const needsPin: PinFromLink | null =
+    linkPlace && !linkPlace.position ? { start: linkPlace.guess, address: linkPlace.address } : null;
   const askName = !fromLink || (linkState.status === "ok" && !linkName);
   const finalName = (fromLink && linkName) || name.trim();
   const canContinue =
@@ -210,6 +225,7 @@ export function NewRestaurantModal({ initial, onNext, onSave, saving, onClose }:
                 {linkState.status === "loading" && "A ler o link…"}
                 {linkState.status === "ok" &&
                   (linkName ? `✓ Encontrado: ${linkName}` : "✓ Encontrado — este sítio não tem nome no Google Maps, escreve-o abaixo.")}
+                {needsPin?.address && <span className="block text-neutral-500">{needsPin.address}</span>}
                 {linkState.status === "error" && linkState.message}
               </span>
             )}
@@ -264,7 +280,11 @@ export function NewRestaurantModal({ initial, onNext, onSave, saving, onClose }:
             <span aria-hidden="true" className="text-lg leading-5">
               📍
             </span>
-            <p>Fica no sítio exato indicado pelo Google Maps.</p>
+            <p>
+              {needsPin
+                ? "Este link não traz a localização exata: a seguir pões o pin no sítio do restaurante."
+                : "Fica no sítio exato indicado pelo Google Maps."}
+            </p>
           </div>
         ) : (
           <div
@@ -316,7 +336,7 @@ export function NewRestaurantModal({ initial, onNext, onSave, saving, onClose }:
                 disabled={!canContinue}
                 onClick={(event) => {
                   setChosen(status);
-                  onSave({ name: finalName, kinds, link: link.trim(), status }, event.currentTarget.getBoundingClientRect());
+                  onSave({ name: finalName, kinds, link: link.trim(), status, needsPin }, event.currentTarget.getBoundingClientRect());
                 }}
                 className={`flex h-12 items-center justify-center gap-2 rounded-full font-semibold disabled:opacity-50 ${style}`}
               >

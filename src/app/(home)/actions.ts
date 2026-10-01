@@ -5,7 +5,7 @@ import { parseDetails } from "@/lib/list/details";
 import { isListStatus, type ListItem, type ListStatus } from "@/lib/list/types";
 import { DUPLICATE_RADIUS_M, NAME_MAX, distanceMeters, parseNewRestaurant, type NewRestaurant } from "@/lib/list/new-restaurant";
 import { findGoogleMapsLink, isGoogleMapsUrl, parseGoogleMapsUrl, type LinkPlace } from "@/lib/search/google-link";
-import { normalizeName } from "@/lib/search/photon";
+import { PHOTON_URL, normalizeName } from "@/lib/search/photon";
 import { customPlaceId, customRestaurantId, isFoodClass, parseKinds, type FoodClass, type SelectedPlace } from "@/lib/map/restaurants";
 
 export type AddResult = { ok: true; item: ListItem } | { ok: false; error: string };
@@ -196,13 +196,42 @@ export async function readGoogleLink(text: string): Promise<LinkResult> {
   if (!claims?.claims) return { ok: false, error: "Sessão não iniciada." };
   if (typeof text !== "string" || text.length > 2000) return { ok: false, error: LINK_ERROR };
   const place = await resolveGoogleLink(text);
-  return place ? { ok: true, place } : { ok: false, error: LINK_ERROR };
+  if (!place) return { ok: false, error: LINK_ERROR };
+  if (!place.position) place.guess = await geocode([place.name, place.address].filter(Boolean).join(", "));
+  return { ok: true, place };
 }
 
-// Adds a restaurant at the position of a Google Maps link (no GPS / pin step). The link is read again here,
-// so the position and name always come from Google, never from the browser. input.name is only used when the
-// link has no name (a dropped pin).
-export async function createRestaurantFromLink(input: { link?: unknown; name?: unknown; kinds?: unknown }): Promise<CreateResult> {
+// Rough spot for a link without a position, so the pin starts near it (Photon: free, OpenStreetMap). Null when
+// nothing is found; the user then moves the map there.
+async function geocode(query: string): Promise<{ lat: number; lng: number } | null> {
+  for (const q of [query, query.split(",").slice(1).join(",")]) {
+    if (!q.trim()) continue;
+    try {
+      const res = await fetch(`${PHOTON_URL}?${new URLSearchParams({ q, limit: "1" })}`, {
+        headers: { "User-Agent": "Mordomia (friends-only restaurant app)" },
+        signal: AbortSignal.timeout(LINK_TIMEOUT_MS),
+      });
+      if (!res.ok) continue;
+      const body = (await res.json()) as { features?: { geometry?: { coordinates?: [number, number] } }[] };
+      const coords = body.features?.[0]?.geometry?.coordinates;
+      if (coords) return { lat: coords[1], lng: coords[0] };
+    } catch {
+      // Try the next, shorter query.
+    }
+  }
+  return null;
+}
+
+// Adds a restaurant from a Google Maps link (no GPS step). The link is read again here, so the name and, when the
+// link has one, the position come from Google, never from the browser. input.name is only used when the link has
+// no name (a dropped pin); input.lat/lng (the pin the user placed) only when the link has no position.
+export async function createRestaurantFromLink(input: {
+  link?: unknown;
+  name?: unknown;
+  kinds?: unknown;
+  lat?: unknown;
+  lng?: unknown;
+}): Promise<CreateResult> {
   const kinds = parseKinds(input?.kinds);
   if (!kinds || typeof input.link !== "string" || input.link.length > 2000) return { ok: false, error: "Escolhe um tipo." };
   const place = await resolveGoogleLink(input.link);
@@ -210,5 +239,12 @@ export async function createRestaurantFromLink(input: { link?: unknown; name?: u
   const typed = typeof input.name === "string" ? input.name : "";
   const name = (place.name ?? typed).trim().replace(/\s+/g, " ").slice(0, NAME_MAX);
   if (!name) return { ok: false, error: "Indica o nome do restaurante." };
-  return saveRestaurant({ name, kinds, lat: place.lat, lng: place.lng });
+  const { lat, lng } = input;
+  const position =
+    place.position ??
+    (typeof lat === "number" && typeof lng === "number" && Math.abs(lat) <= 90 && Math.abs(lng) <= 180
+      ? { lat, lng }
+      : null);
+  if (!position) return { ok: false, error: "Põe o pin no sítio do restaurante." };
+  return saveRestaurant({ name, kinds, ...position });
 }
