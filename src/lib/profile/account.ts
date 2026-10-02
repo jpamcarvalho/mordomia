@@ -69,7 +69,16 @@ const LEVELS: readonly Omit<Level, "next">[] = [
   { emoji: "🧭", name: "Explorador", from: 15 },
   { emoji: "🏅", name: "Gourmet", from: 30 },
   { emoji: "👑", name: "Mordomo-mor", from: 60 },
+  { emoji: "🍷", name: "Sommelier", from: 100 },
+  { emoji: "📝", name: "Crítico", from: 150 },
+  { emoji: "👨‍🍳", name: "Chef honorário", from: 200 },
+  { emoji: "🏆", name: "Lenda da mesa", from: 300 },
 ];
+
+// Every level in order, for the "all levels" view.
+export function allLevels(): Level[] {
+  return LEVELS.map((level, index) => ({ ...level, next: LEVELS[index + 1]?.from ?? null }));
+}
 
 // Level earned by the number of places the user has been to.
 export function levelFor(went: number): Level {

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useTransition, type CSSProperties } from "
 import { logout } from "@/app/login/actions";
 import { saveBio, saveDisplayName, setAvatar } from "@/app/account/actions";
 import { Spinner } from "@/components/spinner";
+import { LevelsSheet } from "./levels-sheet";
 import { BIO_MAX, DISPLAY_NAME_MAX, levelFor, type AccountStats } from "@/lib/profile/account";
 import { ratingColor } from "@/lib/list/rating-color";
 import { avatarInitial } from "@/lib/profile/avatar";
@@ -339,39 +340,51 @@ function LevelCard({
     const frame = requestAnimationFrame(() => setGrown(true));
     return () => cancelAnimationFrame(frame);
   }, []);
+  const [showLevels, setShowLevels] = useState(false);
   const progress = level.next === null ? 1 : (went - level.from) / (level.next - level.from);
   const nextLevel = level.next === null ? null : levelFor(level.next);
 
   return (
-    <section style={style} className={`rounded-3xl bg-white p-5 shadow-sm ${ENTER}`}>
-      <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="text-4xl motion-safe:animate-bounce [animation-iteration-count:2]">
-          {level.emoji}
-        </span>
-        <div>
-          <p className="text-xs font-medium tracking-wide text-accent uppercase">O teu nível</p>
-          <p className="text-lg font-bold">{level.name}</p>
-        </div>
-      </div>
-      <div
-        role="progressbar"
-        aria-label="Progresso para o próximo nível"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(progress * 100)}
-        className="mt-4 h-3 overflow-hidden rounded-full bg-orange-100"
+    <>
+      {/* Tapping the card shows every level and how far each one is. */}
+      <button
+        type="button"
+        onClick={() => setShowLevels(true)}
+        aria-haspopup="dialog"
+        style={style}
+        className={`block w-full rounded-3xl bg-white p-5 text-left shadow-sm transition active:scale-[0.98] ${ENTER}`}
       >
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-orange-400 to-accent transition-[width] duration-1000 ease-out"
-          style={{ width: grown ? `${Math.max(progress * 100, 4)}%` : "0%" }}
-        />
-      </div>
-      <p className="mt-2 text-sm text-neutral-500">
-        {nextLevel
-          ? `Faltam ${level.next! - went} ${level.next! - went === 1 ? "restaurante" : "restaurantes"} para ${nextLevel.emoji} ${nextLevel.name}`
-          : "Chegaste ao topo. Os restaurantes do Porto agradecem! 🎉"}
-      </p>
-    </section>
+        <span className="flex items-center gap-3">
+          <span aria-hidden="true" className="text-4xl motion-safe:animate-bounce [animation-iteration-count:2]">
+            {level.emoji}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-medium tracking-wide text-accent uppercase">O teu nível</span>
+            <span className="block text-lg font-bold">{level.name}</span>
+          </span>
+          <span className="shrink-0 text-sm font-semibold text-accent">Ver níveis ›</span>
+        </span>
+        <span
+          role="progressbar"
+          aria-label="Progresso para o próximo nível"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+          className="mt-4 block h-3 overflow-hidden rounded-full bg-orange-100"
+        >
+          <span
+            className="block h-full rounded-full bg-gradient-to-r from-orange-400 to-accent transition-[width] duration-1000 ease-out"
+            style={{ width: grown ? `${Math.max(progress * 100, 4)}%` : "0%" }}
+          />
+        </span>
+        <span className="mt-2 block text-sm text-neutral-500">
+          {nextLevel
+            ? `Faltam ${level.next! - went} ${level.next! - went === 1 ? "restaurante" : "restaurantes"} para ${nextLevel.emoji} ${nextLevel.name}`
+            : "Último nível conhecido… há mais por desbloquear 👀"}
+        </span>
+      </button>
+      {showLevels && <LevelsSheet went={went} onClose={() => setShowLevels(false)} />}
+    </>
   );
 }
 
