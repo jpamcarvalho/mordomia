@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
   acceptGroupInvite,
@@ -19,6 +19,7 @@ import { EVENT_TITLE_MAX } from "@/lib/social/groups";
 import { formatDay } from "@/lib/social/dates";
 import { mapHref } from "@/lib/map/place-link";
 import { kindEmoji } from "@/lib/map/restaurants";
+import { priceWinner } from "./event-past";
 import { ConnoisseurPill, GroupPhoto, GroupSheet, PersonAvatar, Sheet, SheetHeader, groupHref, memberCount, primary, secondary } from "./groups-tab";
 
 type Props = {
@@ -28,6 +29,8 @@ type Props = {
   // My friends, to invite.
   friends: Person[];
 };
+
+type EventsTab = "abertos" | "passados";
 
 const GROUPS_HREF = "/social?tab=grupos";
 
@@ -42,6 +45,17 @@ export function GroupPage({ userId, initialGroup, initialEvents, friends }: Prop
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const member = group.myStatus === "member";
+  // The tab lives in the URL (?eventos=passados), so coming back from an event lands on it.
+  const tab: EventsTab = useSearchParams().get("eventos") === "passados" ? "passados" : "abertos";
+  const openEvents = events.filter((event) => !event.closedAt);
+  // Most recent first.
+  const pastEvents = events
+    .filter((event) => event.closedAt)
+    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "") || b.closedAt!.localeCompare(a.closedAt!));
+
+  function chooseTab(next: EventsTab) {
+    window.history.replaceState(null, "", next === "passados" ? "?eventos=passados" : window.location.pathname);
+  }
 
   async function refreshGroup() {
     const next = await loadGroup(group.id);
@@ -120,8 +134,46 @@ export function GroupPage({ userId, initialGroup, initialEvents, friends }: Prop
 
         {member ? (
           <section className="mt-8">
-            <h2 className="mb-2 px-1 text-sm font-semibold text-neutral-500">Eventos</h2>
-            {events.length === 0 ? (
+            <div role="tablist" aria-label="Eventos" className="mb-3 grid grid-cols-2 gap-1 rounded-full bg-neutral-200/70 p-1">
+              {(
+                [
+                  ["abertos", "Abertos", openEvents.length],
+                  ["passados", "Passados", pastEvents.length],
+                ] as const
+              ).map(([id, label, count]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === id}
+                  onClick={() => chooseTab(id)}
+                  className={`h-9 rounded-full text-sm font-semibold transition ${
+                    tab === id ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"
+                  }`}
+                >
+                  {id === "passados" ? "🏁 " : ""}
+                  {label}
+                  {count > 0 && <span className="ml-1 text-xs text-neutral-400">{count}</span>}
+                </button>
+              ))}
+            </div>
+            {tab === "passados" ? (
+              pastEvents.length === 0 ? (
+                <div className="mt-6 flex flex-col items-center gap-1 px-6 text-center">
+                  <span aria-hidden="true" className="text-4xl">
+                    🏁
+                  </span>
+                  <p className="font-semibold">Ainda não há eventos passados</p>
+                  <p className="text-sm text-neutral-500">Quando o mordomo encerrar um evento, ele aparece aqui.</p>
+                </div>
+              ) : (
+                <ul className="flex flex-col gap-3">
+                  {pastEvents.map((event, index) => (
+                    <PastEventCard key={event.id} event={event} index={index} />
+                  ))}
+                </ul>
+              )
+            ) : openEvents.length === 0 ? (
               <div className="mt-6 flex flex-col items-center gap-1 px-6 text-center">
                 <span aria-hidden="true" className="text-4xl">
                   🗓️
@@ -131,7 +183,7 @@ export function GroupPage({ userId, initialGroup, initialEvents, friends }: Prop
               </div>
             ) : (
               <ul className="flex flex-col gap-3">
-                {events.map((event, index) => (
+                {openEvents.map((event, index) => (
                   <EventCard key={event.id} event={event} index={index} onChanged={refreshEvents} />
                 ))}
               </ul>
@@ -344,6 +396,30 @@ function EventCard({ event, index, onChanged }: { event: GroupEvent; index: numb
           {event.dateOptions.length > 0 ? "🗳️ Votação dos dias a decorrer" : "📅 Ainda sem data"}
         </p>
       ) : null}
+    </li>
+  );
+}
+
+// A closed event in "Passados": when, where, the mordomo and the Preço certo winner; it opens the summary.
+function PastEventCard({ event, index }: { event: GroupEvent; index: number }) {
+  const winner = priceWinner(event);
+  return (
+    <li style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }} className="motion-safe:animate-[fork-pop_260ms_ease-out_both]">
+      <Link
+        href={eventHref(event.groupId, event.id)}
+        className="group flex flex-col gap-1.5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 transition active:scale-[0.99]"
+      >
+        <span className="flex items-baseline gap-2">
+          <span className="min-w-0 flex-1 truncate text-lg font-semibold group-hover:text-accent">{event.title}</span>
+          {event.date && <span className="shrink-0 text-xs font-semibold text-neutral-400 first-letter:uppercase">{formatDay(event.date)}</span>}
+        </span>
+        <span className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-neutral-600">
+          {event.mordomo && <span>🎩 {event.mordomo.displayName.split(" ")[0]}</span>}
+          {event.location && <span className="max-w-full truncate">📍 {event.location.name}</span>}
+          <span>👥 {event.going.length}</span>
+          {winner && <span className="font-semibold text-amber-700">👑 {winner.person.displayName.split(" ")[0]}</span>}
+        </span>
+      </Link>
     </li>
   );
 }

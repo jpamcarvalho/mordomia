@@ -294,6 +294,8 @@ export type GroupEvent = {
   canSuggest: boolean;
   // "Preço certo": guesses of the price per person, then the bill revealed by the mordomo.
   price: PriceGame;
+  // When the mordomo closed ("encerrou") the event; a closed event no longer changes.
+  closedAt: string | null;
 };
 
 export type PriceGame = {
@@ -323,6 +325,7 @@ type EventRow = {
   event_date: string | null;
   price_opened_at: string | null;
   price_closed_at: string | null;
+  closed_at: string | null;
   location: RestaurantPlaceRow | null;
 };
 type SuggestionRow = { id: string; event_id: string; suggested_by: string | null; restaurants: RestaurantPlaceRow | null };
@@ -340,7 +343,7 @@ export async function loadGroupEvents(groupId: string): Promise<GroupEvent[]> {
   const [{ data: eventRows }, { data: group }] = await Promise.all([
     supabase
       .from("group_events")
-      .select(`id, title, created_at, created_by, mordomo_id, event_date, price_opened_at, price_closed_at, location:restaurants(${RESTAURANT_PLACE_COLUMNS})`)
+      .select(`id, title, created_at, created_by, mordomo_id, event_date, price_opened_at, price_closed_at, closed_at, location:restaurants(${RESTAURANT_PLACE_COLUMNS})`)
       .eq("group_id", groupId)
       .order("created_at", { ascending: false }),
     supabase.from("groups").select("owner_id").eq("id", groupId).maybeSingle(),
@@ -455,8 +458,9 @@ export async function loadGroupEvents(groupId: string): Promise<GroupEvent[]> {
               ? [{ id: row.id, place, by: row.suggested_by ? (people.get(row.suggested_by) ?? null) : null, mine: row.suggested_by === me }]
               : [];
           }),
-      canSuggest: !!event.event_date && !event.location && state(me) === "going",
+      canSuggest: !!event.event_date && !event.closed_at && !event.location && state(me) === "going",
       price: priceGame(event, me, state(me) === "going", bills.get(event.id), guesses, guessers, people),
+      closedAt: event.closed_at,
     };
   });
 }
@@ -617,6 +621,14 @@ function parsePlace(input: unknown): SelectedPlace | null {
   if (!isFoodClass(kind) || typeof lat !== "number" || typeof lng !== "number") return null;
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
   return { id, name: name.trim(), kind, lat, lng };
+}
+
+// The mordomo closes ("encerra") a dated event; the database checks who, and that a Preço certo was revealed.
+export async function closeGroupEvent(eventId: string): Promise<Done> {
+  const session = await signedIn();
+  if (!session || !isId(eventId)) return { ok: false };
+  const { error } = await session.supabase.rpc("close_group_event", { eid: eventId });
+  return { ok: !error };
 }
 
 // "Preço certo": the mordomo opens (or reopens) the guesses, or closes them. The database checks who and when.

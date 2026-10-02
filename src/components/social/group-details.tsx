@@ -10,8 +10,8 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 
 type Props = { group: Group; stats: GroupStats };
 
-// Group details: who went to the most mordomias (events with a date they were going to) and who was mordomo
-// the most times.
+// Group details: who went to the most mordomias (events with a date they were going to), who was mordomo the
+// most times, and who won the Preço certo the most.
 export function GroupDetails({ group, stats }: Props) {
   const router = useRouter();
   return (
@@ -61,6 +61,16 @@ export function GroupDetails({ group, stats }: Props) {
           unit={(count) => (count === 1 ? "vez" : "vezes")}
           empty="Ainda ninguém foi mordomo."
           delay={240}
+        />
+
+        <Ranking
+          title="💶 Preço certo: quem ganhou mais"
+          hint={`Vitórias no Preço certo (${stats.priceGames} ${stats.priceGames === 1 ? "jogo revelado" : "jogos revelados"}).`}
+          rows={stats.byPriceWins}
+          value={(row) => row.priceWins}
+          unit={(count) => (count === 1 ? "vitória" : "vitórias")}
+          empty="Ainda ninguém ganhou um Preço certo."
+          delay={320}
         />
       </div>
     </main>

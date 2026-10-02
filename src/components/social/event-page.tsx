@@ -18,6 +18,8 @@ import { DateSection } from "./date-poll";
 import { Attendance, HabemusBanner } from "./event-attendance";
 import { LocationSection } from "./event-location";
 import { PriceSection } from "./event-price";
+import { CloseEvent, ThankYou } from "./event-close";
+import { PastEvent } from "./event-past";
 import { GroupPhoto, PersonAvatar, groupHref, primary } from "./groups-tab";
 
 type Props = { group: Group; initialEvent: GroupEvent };
@@ -53,6 +55,8 @@ export function EventPage({ group, initialEvent }: Props) {
 
   // Whatever anyone does on this event (mordomo, poll, votes, who goes) shows up here right away.
   const live = useLiveEvent(event.id, () => void refresh(), () => rolling.current);
+  // Right after the mordomo closes the event: thanks for organising it.
+  const [thanks, setThanks] = useState(false);
 
   return (
     // With a date the whole page turns festive ("Habemus data").
@@ -88,6 +92,11 @@ export function EventPage({ group, initialEvent }: Props) {
           )}
         </div>
 
+        {event.closedAt ? (
+          // A past event: just what happened.
+          <PastEvent event={event} />
+        ) : (
+          <>
         <header className="motion-safe:animate-[sheet-up_400ms_ease-out_both]">
           <p className={`text-xs font-semibold tracking-wide uppercase ${event.date ? "text-orange-700" : "text-neutral-400"}`}>
             {event.date ? "🎉 Evento marcado" : "Evento"}
@@ -123,6 +132,13 @@ export function EventPage({ group, initialEvent }: Props) {
           <>
             <Attendance event={event} onChanged={refresh} />
             <PriceSection event={event} onChanged={refresh} />
+            <CloseEvent
+              event={event}
+              onClosed={async () => {
+                setThanks(true);
+                await refresh();
+              }}
+            />
           </>
         ) : (
           <>
@@ -134,7 +150,10 @@ export function EventPage({ group, initialEvent }: Props) {
             <Locked title="Quem vai">Abre quando o evento tiver data.</Locked>
           </>
         )}
+          </>
+        )}
       </div>
+      {thanks && event.mordomo && <ThankYou mordomo={event.mordomo} going={event.going.length} onClose={() => setThanks(false)} />}
     </main>
   );
 }
