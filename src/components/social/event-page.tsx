@@ -1,5 +1,6 @@
 "use client";
 
+import { ProfileLink } from "./profile-link";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -55,7 +56,7 @@ export function EventPage({ group, initialEvent }: Props) {
   return (
     // With a date the whole page turns festive ("Habemus data").
     <main
-      className={`min-h-dvh pb-[calc(env(safe-area-inset-bottom)+2rem)] transition-colors duration-700 ${
+      className={`min-h-dvh pb-[calc(env(safe-area-inset-bottom)+6rem)] transition-colors duration-700 ${
         event.date ? "bg-gradient-to-b from-amber-100 via-orange-50 to-rose-50" : "bg-neutral-50"
       }`}
     >
@@ -99,15 +100,17 @@ export function EventPage({ group, initialEvent }: Props) {
 
         {event.mordomo ? (
           <section className="flex items-center gap-4 rounded-3xl bg-gradient-to-br from-orange-100 to-amber-50 p-5 shadow-sm motion-safe:animate-[sheet-up_400ms_ease-out_both]">
-            <span className="relative">
+            <ProfileLink person={event.mordomo} className="relative shrink-0">
               <PersonAvatar person={event.mordomo} className="size-16 text-2xl ring-4 ring-white" />
               <span aria-hidden="true" className="absolute -top-3 -right-2 text-2xl">
                 🎩
               </span>
-            </span>
+            </ProfileLink>
             <span className="min-w-0">
               <span className="block text-xs font-semibold tracking-wide text-amber-700 uppercase">Mordomo</span>
-              <span className="block truncate text-xl font-bold">{event.mordomo.displayName}</span>
+              <ProfileLink person={event.mordomo} className="block truncate text-xl font-bold">
+                {event.mordomo.displayName}
+              </ProfileLink>
               <span className="block text-sm text-neutral-500">Organiza este evento</span>
             </span>
           </section>

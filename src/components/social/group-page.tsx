@@ -68,7 +68,7 @@ export function GroupPage({ userId, initialGroup, initialEvents, friends }: Prop
   }
 
   return (
-    <main className="min-h-dvh bg-neutral-50 pb-[calc(env(safe-area-inset-bottom)+7rem)]">
+    <main className="min-h-dvh bg-neutral-50 pb-[calc(env(safe-area-inset-bottom)+11rem)]">
       <div className="mx-auto max-w-md px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <div className="flex items-center justify-between">
           <button
@@ -158,7 +158,7 @@ export function GroupPage({ userId, initialGroup, initialEvents, friends }: Prop
           type="button"
           aria-label="Criar evento"
           onClick={() => setCreating(true)}
-          className="fixed right-5 bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] z-30 flex size-14 items-center justify-center rounded-full bg-accent text-white shadow-lg transition active:scale-95 motion-safe:animate-[fork-pop_300ms_ease-out_both]"
+          className="fixed right-5 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-30 flex size-14 items-center justify-center rounded-full bg-accent text-white shadow-lg transition active:scale-95 motion-safe:animate-[fork-pop_300ms_ease-out_both]"
         >
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="size-7">
             <path d="M12 5v14M5 12h14" />

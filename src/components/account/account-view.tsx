@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { logout } from "@/app/login/actions";
@@ -20,14 +21,15 @@ type Props = {
   avatarUrl: string | null;
   memberSince: string | null;
   stats: AccountStats;
+  friendCount: number | null;
 };
 
 const BIO_EMOJIS = ["🍕", "🍣", "🍷", "☕", "🥐", "🌶️", "🍔", "🥗", "🍰", "🐟"];
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 // Staggered entrance for each section.
-const ENTER = "motion-safe:animate-[sheet-up_450ms_ease-out_both]";
-const delay = (ms: number): CSSProperties => ({ animationDelay: `${ms}ms` });
+export const ENTER = "motion-safe:animate-[sheet-up_450ms_ease-out_both]";
+export const delay = (ms: number): CSSProperties => ({ animationDelay: `${ms}ms` });
 
 // Counts up from 0 to `value` once (instant when the user prefers reduced motion).
 function useCountUp(value: number, decimals = 0) {
@@ -48,7 +50,7 @@ function useCountUp(value: number, decimals = 0) {
   return shown.toFixed(decimals).replace(".", ",");
 }
 
-export function AccountView({ userId, username, displayName, bio, avatarUrl, memberSince, stats }: Props) {
+export function AccountView({ userId, username, displayName, bio, avatarUrl, memberSince, stats, friendCount }: Props) {
   const router = useRouter();
   const level = levelFor(stats.went);
   const since = memberSince
@@ -56,7 +58,7 @@ export function AccountView({ userId, username, displayName, bio, avatarUrl, mem
     : null;
 
   return (
-    <main className="min-h-dvh bg-gradient-to-b from-orange-100 via-orange-50/40 to-white pb-[calc(env(safe-area-inset-bottom)+2rem)]">
+    <main className="min-h-dvh bg-gradient-to-b from-orange-100 via-orange-50/40 to-white pb-[calc(env(safe-area-inset-bottom)+6rem)]">
       <div className="mx-auto flex max-w-md flex-col gap-5 px-5 pt-[calc(env(safe-area-inset-top)+1rem)]">
         {/* Back to wherever the account was opened from (map or Mordomia Social); the map when opened directly. */}
         <button
@@ -72,6 +74,20 @@ export function AccountView({ userId, username, displayName, bio, avatarUrl, mem
           <NameEditor initialName={displayName} username={username} />
           {username && <p className="text-neutral-500">@{username}</p>}
           {since && <p className="mt-1 text-xs text-neutral-400">No Mordomia desde {since}</p>}
+          {friendCount !== null && (
+            // Opens "Os meus amigos".
+            <Link
+              href="/social/amigos"
+              className="mt-3 rounded-full bg-white/80 px-4 py-1.5 text-sm shadow-sm transition hover:bg-white active:scale-95"
+            >
+              <span aria-hidden="true">👥 </span>
+              <span className="font-bold tabular-nums">{friendCount}</span>{" "}
+              <span className="text-neutral-500">{friendCount === 1 ? "amigo" : "amigos"}</span>
+              <span aria-hidden="true" className="ml-1 text-neutral-400">
+                ›
+              </span>
+            </Link>
+          )}
         </section>
 
         <LevelCard went={stats.went} level={level} style={delay(80)} />
@@ -84,31 +100,12 @@ export function AccountView({ userId, username, displayName, bio, avatarUrl, mem
 
         <BioCard initialBio={bio} style={delay(240)} />
 
-        <section style={delay(320)} className={`rounded-3xl bg-white p-5 shadow-sm ${ENTER}`}>
-          <h2 className="font-semibold">🏆 Os meus favoritos</h2>
-          {stats.favourites.length ? (
-            <ol className="mt-3 flex flex-col gap-2">
-              {stats.favourites.map((favourite, index) => (
-                <li
-                  key={favourite.entryId}
-                  className="flex items-center gap-3 rounded-2xl bg-neutral-50 px-3 py-3 transition hover:bg-orange-50"
-                >
-                  <span aria-hidden="true" className="text-2xl">
-                    {MEDALS[index]}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate font-medium">{favourite.name}</span>
-                  <span style={{ backgroundColor: ratingColor(favourite.rating) }} className="rounded-full px-2.5 py-1 text-sm font-bold text-white">
-                    {favourite.rating}/10
-                  </span>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="mt-2 text-sm text-neutral-500">
-              Dá nota aos sítios onde vais e os teus preferidos aparecem aqui. ⭐
-            </p>
-          )}
-        </section>
+        <FavouritesCard
+          title="🏆 Os meus favoritos"
+          favourites={stats.favourites}
+          empty="Dá nota aos sítios onde vais e os teus preferidos aparecem aqui. ⭐"
+          style={delay(320)}
+        />
 
         <form action={logout} style={delay(400)} className={`flex justify-center ${ENTER}`}>
           <button className="flex h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-red-100 bg-white font-semibold text-red-600 shadow-sm transition hover:bg-red-50 active:scale-95">
@@ -287,6 +284,44 @@ function NameEditor({ initialName, username }: { initialName: string | null; use
       <p className="text-xs text-neutral-400">O @nome de utilizador não muda.</p>
       {error && <p className="text-sm text-red-600">{error}</p>}
     </form>
+  );
+}
+
+function FavouritesCard({
+  title,
+  favourites,
+  empty,
+  style,
+}: {
+  title: string;
+  favourites: AccountStats["favourites"];
+  empty: string;
+  style: CSSProperties;
+}) {
+  return (
+    <section style={style} className={`rounded-3xl bg-white p-5 shadow-sm ${ENTER}`}>
+      <h2 className="font-semibold">{title}</h2>
+      {favourites.length ? (
+        <ol className="mt-3 flex flex-col gap-2">
+          {favourites.map((favourite, index) => (
+            <li
+              key={favourite.entryId}
+              className="flex items-center gap-3 rounded-2xl bg-neutral-50 px-3 py-3 transition hover:bg-orange-50"
+            >
+              <span aria-hidden="true" className="text-2xl">
+                {MEDALS[index]}
+              </span>
+              <span className="min-w-0 flex-1 truncate font-medium">{favourite.name}</span>
+              <span style={{ backgroundColor: ratingColor(favourite.rating) }} className="rounded-full px-2.5 py-1 text-sm font-bold text-white">
+                {favourite.rating}/10
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mt-2 text-sm text-neutral-500">{empty}</p>
+      )}
+    </section>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   acceptFriendRequest,
   loadFriends,
@@ -15,10 +15,13 @@ import {
   type Person,
   type Relation,
 } from "@/app/social/actions";
+import { refreshNav } from "@/components/app-nav";
+import { ProfileLink } from "./profile-link";
+import { RemoveFriendSheet } from "./remove-friend-sheet";
 import { avatarInitial } from "@/lib/profile/avatar";
 import { kindEmoji } from "@/lib/map/restaurants";
 import { ratingColor } from "@/lib/list/rating-color";
-import { badgeText, countNew, markFeedSeen, readFeedSeen, subscribeNothing } from "@/lib/social/seen";
+import { countNew, markFeedSeen, readFeedSeen, subscribeNothing } from "@/lib/social/seen";
 import { MagnifierIcon } from "@/components/home/search-modal";
 import { GroupsTab } from "@/components/social/groups-tab";
 import type { Group } from "@/app/social/groups";
@@ -38,13 +41,11 @@ type Props = {
   initialFriends: Friends;
   initialGroups: Group[];
   feed: FeedItem[];
-  username: string | null;
-  avatarUrl: string | null;
 };
 
-// "Mordomia Social" (/social): a bottom bar with Procurar (find friends, answer requests), Grupos (my groups and
-// invites), Feed (friends' latest additions to their lists) and the avatar (account page).
-export function SocialView({ userId, initialFriends, initialGroups, feed, username, avatarUrl }: Props) {
+// "Mordomia Social" (/social): Procurar (find friends, answer requests), Grupos (my groups and invites) and Feed
+// (friends' latest additions to their lists). The tabs are in the app's bottom bar (AppNav).
+export function SocialView({ userId, initialFriends, initialGroups, feed }: Props) {
   // The tab lives in the address (?tab=…), so a refresh, reload or coming back (e.g. from Perfil) stays on it.
   const tab = parseTab(useSearchParams().get("tab"));
   function setTab(next: SocialTab) {
@@ -52,14 +53,16 @@ export function SocialView({ userId, initialFriends, initialGroups, feed, userna
   }
   const [friends, setFriends] = useState<Friends>(initialFriends);
   const [groups, setGroups] = useState<Group[]>(initialGroups);
-  const invites = groups.filter((group) => group.myStatus === "invited").length;
   const count = friends.friends.length;
   // When the Feed was last seen on this device (read on every render, so it updates after leaving the Feed).
   const seen = useSyncExternalStore(subscribeNothing, readFeedSeen, () => null);
-  const newFeed = countNew(
-    feed.map((item) => item.at),
-    seen,
-  );
+
+  // Requests answered or invites accepted here change the bottom bar's badges.
+  const changed = useRef(false);
+  useEffect(() => {
+    if (changed.current) refreshNav();
+    changed.current = true;
+  }, [friends, groups]);
 
   // The Feed counts as seen once the user leaves it (other tab, back to the map, app closed), so its "Novo"
   // tags stay visible while reading.
@@ -110,15 +113,6 @@ export function SocialView({ userId, initialFriends, initialGroups, feed, userna
         )}
       </div>
 
-      <BottomBar
-        tab={tab}
-        onTab={setTab}
-        requests={friends.received.length}
-        invites={invites}
-        newFeed={newFeed}
-        username={username}
-        avatarUrl={avatarUrl}
-      />
     </main>
   );
 }
@@ -284,18 +278,20 @@ function PeopleList({ children }: { children: React.ReactNode }) {
 function PersonRow({ person, children }: { person: Person; children: React.ReactNode }) {
   return (
     <li className="flex items-center gap-3 border-b border-neutral-100 px-4 py-3 last:border-0">
-      <span className="mt-5 flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-semibold text-white">
-        {person.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- signed Supabase URL
-          <img src={person.avatarUrl} alt="" className="size-full object-cover" />
-        ) : (
-          avatarInitial(person.username)
-        )}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold">{person.displayName}</span>
-        <span className="block truncate text-sm text-neutral-500">@{person.username}</span>
-      </span>
+      <ProfileLink person={person} className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-semibold text-white">
+          {person.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- signed Supabase URL
+            <img src={person.avatarUrl} alt="" className="size-full object-cover" />
+          ) : (
+            avatarInitial(person.username)
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold">{person.displayName}</span>
+          <span className="block truncate text-sm text-neutral-500">@{person.username}</span>
+        </span>
+      </ProfileLink>
       {children}
     </li>
   );
@@ -305,10 +301,11 @@ type ActionsProps = {
   person: Person;
   relation: Relation;
   busy: boolean;
-  onAct: (person: Person, action: "add" | "accept" | "remove") => void;
+  onAct: (person: Person, action: "add" | "accept" | "remove") => Promise<void>;
 };
 
 function RelationActions({ person, relation, busy, onAct }: ActionsProps) {
+  const [confirming, setConfirming] = useState(false);
   const primary = "h-9 rounded-full bg-accent px-4 text-sm font-semibold text-white shadow disabled:opacity-50";
   const secondary = "h-9 rounded-full bg-neutral-100 px-3 text-sm font-semibold text-neutral-700 disabled:opacity-50";
   if (relation === "received") {
@@ -332,16 +329,14 @@ function RelationActions({ person, relation, busy, onAct }: ActionsProps) {
   }
   if (relation === "friends") {
     return (
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => {
-          if (window.confirm(`Remover ${person.displayName} dos teus amigos?`)) onAct(person, "remove");
-        }}
-        className={secondary}
-      >
-        Amigos ✓
-      </button>
+      <>
+        <button type="button" disabled={busy} onClick={() => setConfirming(true)} className={secondary}>
+          Amigos ✓
+        </button>
+        {confirming && (
+          <RemoveFriendSheet person={person} onConfirm={() => onAct(person, "remove")} onClose={() => setConfirming(false)} />
+        )}
+      </>
     );
   }
   return (
@@ -413,9 +408,13 @@ function FeedTab({ items, seen, hasFriends, onFindFriends }: FeedProps) {
     <ul className="flex flex-col gap-4">
       {runs.map((run) => (
         <li key={run[0].id} className="flex items-start gap-2.5">
-          <Avatar person={run[0].person} />
+          <ProfileLink person={run[0].person} className="mt-5 shrink-0">
+            <Avatar person={run[0].person} />
+          </ProfileLink>
           <div className="min-w-0 flex-1">
-            <p className="mb-1 ml-1 text-xs font-semibold text-neutral-500">{run[0].person.displayName}</p>
+            <ProfileLink person={run[0].person} className="mb-1 ml-1 inline-block text-xs font-semibold text-neutral-500 hover:text-accent">
+              {run[0].person.displayName}
+            </ProfileLink>
             <ul className="flex flex-col gap-1.5">
               {run.map((item, position) => {
                 const isNew = countNew([item.at], seen) > 0;
@@ -469,7 +468,7 @@ function FeedTab({ items, seen, hasFriends, onFindFriends }: FeedProps) {
 
 function Avatar({ person }: { person: Person }) {
   return (
-    <span className="mt-5 flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-semibold text-white">
+    <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-semibold text-white">
       {person.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- signed Supabase URL
         <img src={person.avatarUrl} alt="" className="size-full object-cover" />
@@ -477,105 +476,5 @@ function Avatar({ person }: { person: Person }) {
         avatarInitial(person.username)
       )}
     </span>
-  );
-}
-
-type BarProps = {
-  tab: SocialTab;
-  onTab: (tab: SocialTab) => void;
-  requests: number;
-  // Group invites not answered yet.
-  invites: number;
-  // Feed items not seen on this device yet.
-  newFeed: number;
-  username: string | null;
-  avatarUrl: string | null;
-};
-
-// Bottom bar: the map, Procurar, Grupos, Feed, and the avatar (account page).
-function BottomBar({ tab, onTab, requests, invites, newFeed, username, avatarUrl }: BarProps) {
-  const item = "relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold";
-  const tabs: { id: SocialTab; label: string; icon: React.ReactNode }[] = [
-    { id: "procurar", label: "Procurar", icon: <MagnifierIcon className="size-6" /> },
-    { id: "grupos", label: "Grupos", icon: <GroupIcon /> },
-    { id: "feed", label: "Feed", icon: <FeedIcon /> },
-  ];
-  const badges: Record<SocialTab, number> = {
-    procurar: requests,
-    grupos: invites,
-    feed: tab === "feed" ? 0 : newFeed,
-  };
-  return (
-    <nav
-      aria-label="Mordomia Social"
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
-    >
-      <div className="mx-auto flex max-w-md">
-        <Link href="/" className={`${item} text-neutral-500`}>
-          <MapIcon />
-          Mapa
-        </Link>
-        {tabs.map(({ id, label, icon }) => (
-          <button
-            key={id}
-            type="button"
-            aria-current={tab === id ? "page" : undefined}
-            onClick={() => onTab(id)}
-            className={`${item} ${tab === id ? "text-accent" : "text-neutral-500"}`}
-          >
-            {icon}
-            {label}
-            {/* No feed badge while on the Feed: it is being read. */}
-            {badges[id] > 0 && (
-              <span className="absolute top-1 left-1/2 ml-2 flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white ring-2 ring-white motion-safe:animate-[badge-pop_350ms_ease-out_both]">
-                {badgeText(badges[id])}
-              </span>
-            )}
-          </button>
-        ))}
-        <Link href="/account" className={`${item} text-neutral-500`}>
-          <span className="flex size-6 items-center justify-center overflow-hidden rounded-full bg-accent text-xs font-semibold text-white">
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- signed Supabase URL
-              <img src={avatarUrl} alt="" className="size-full object-cover" />
-            ) : (
-              avatarInitial(username)
-            )}
-          </span>
-          Perfil
-        </Link>
-      </div>
-    </nav>
-  );
-}
-
-function MapIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-6">
-      <path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4Z" />
-      <path d="M9 4v14M15 6v14" />
-    </svg>
-  );
-}
-
-function GroupIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-6">
-      <circle cx="12" cy="8" r="3" />
-      <path d="M6.5 20a5.5 5.5 0 0 1 11 0" />
-      <circle cx="5" cy="10" r="2.2" />
-      <path d="M1.5 18a3.5 3.5 0 0 1 4.2-3.4" />
-      <circle cx="19" cy="10" r="2.2" />
-      <path d="M22.5 18a3.5 3.5 0 0 0-4.2-3.4" />
-    </svg>
-  );
-}
-
-function FeedIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-6">
-      <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
-      <path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h5" />
-    </svg>
   );
 }

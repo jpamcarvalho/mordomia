@@ -1,5 +1,6 @@
 "use client";
 
+import { ProfileLink } from "./profile-link";
 import { useRouter } from "next/navigation";
 import type { Group } from "@/app/social/groups";
 import type { GroupStats, MemberStats } from "@/lib/social/group-stats";
@@ -14,7 +15,7 @@ type Props = { group: Group; stats: GroupStats };
 export function GroupDetails({ group, stats }: Props) {
   const router = useRouter();
   return (
-    <main className="min-h-dvh bg-gradient-to-b from-orange-50 to-neutral-50 pb-[calc(env(safe-area-inset-bottom)+2rem)]">
+    <main className="min-h-dvh bg-gradient-to-b from-orange-50 to-neutral-50 pb-[calc(env(safe-area-inset-bottom)+6rem)]">
       <div className="mx-auto flex max-w-md flex-col gap-5 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <button
           type="button"
@@ -113,14 +114,18 @@ function Ranking({ crownId, title, hint, rows, value, unit, empty, delay }: Rank
                 <span aria-label={`${place + 1}.º`} className="w-7 shrink-0 text-center text-lg font-bold text-neutral-400">
                   {count > 0 && place < 3 ? MEDALS[place] : `${place + 1}`}
                 </span>
-                {row.person.id === crownId ? (
-                  <CrownedAvatar person={row.person} className="size-11 text-sm" />
-                ) : (
-                  <PersonAvatar person={row.person} className={`text-sm ${count > 0 && place === 0 ? "size-11 ring-2 ring-amber-400" : "size-9"}`} />
-                )}
+                <ProfileLink person={row.person} className="shrink-0">
+                  {row.person.id === crownId ? (
+                    <CrownedAvatar person={row.person} className="size-11 text-sm" />
+                  ) : (
+                    <PersonAvatar person={row.person} className={`text-sm ${count > 0 && place === 0 ? "size-11 ring-2 ring-amber-400" : "size-9"}`} />
+                  )}
+                </ProfileLink>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
-                    <span className="truncate font-semibold">{row.person.displayName}</span>
+                    <ProfileLink person={row.person} className="truncate font-semibold">
+                      {row.person.displayName}
+                    </ProfileLink>
                     {row.person.id === crownId && (
                       <span className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 uppercase">Connoisseur</span>
                     )}

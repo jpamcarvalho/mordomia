@@ -1,5 +1,6 @@
 "use client";
 
+import { ProfileLink } from "./profile-link";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -568,18 +569,20 @@ export function GroupSheet({ group, userId, friends, onClose, onChanged }: Sheet
             <ul className="overflow-hidden rounded-2xl ring-1 ring-neutral-200">
               {group.members.map((member) => (
                 <li key={member.id} className="flex items-center gap-3 border-b border-neutral-100 px-4 py-2.5 last:border-0">
-                  {group.connoisseur?.person.id === member.id ? (
-                    <CrownedAvatar person={member} className="size-10 text-sm" />
-                  ) : (
-                    <PersonAvatar person={member} className={`size-10 text-sm ${member.status === "invited" ? "opacity-50" : ""}`} />
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">
-                      {member.displayName}
-                      {member.id === userId && <span className="font-normal text-neutral-400"> (tu)</span>}
+                  <ProfileLink person={member} className="flex min-w-0 flex-1 items-center gap-3">
+                    {group.connoisseur?.person.id === member.id ? (
+                      <CrownedAvatar person={member} className="size-10 text-sm" />
+                    ) : (
+                      <PersonAvatar person={member} className={`size-10 text-sm ${member.status === "invited" ? "opacity-50" : ""}`} />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">
+                        {member.displayName}
+                        {member.id === userId && <span className="font-normal text-neutral-400"> (tu)</span>}
+                      </span>
+                      <span className="block truncate text-xs text-neutral-500">@{member.username}</span>
                     </span>
-                    <span className="block truncate text-xs text-neutral-500">@{member.username}</span>
-                  </span>
+                  </ProfileLink>
                   {group.connoisseur?.person.id === member.id && <Tag gold>Connoisseur</Tag>}
                   {member.id === group.ownerId ? (
                     <Tag>Criador</Tag>

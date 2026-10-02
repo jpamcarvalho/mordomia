@@ -1,5 +1,6 @@
 "use client";
 
+import { ProfileLink } from "./profile-link";
 import { useState } from "react";
 import { answerGroupEvent, answerGroupEventRejoin, requestGroupEventRejoin, type GroupEvent } from "@/app/social/groups";
 import { formatDay } from "@/lib/social/dates";
@@ -101,7 +102,7 @@ export function Attendance({ event, onChanged }: Props) {
             style={{ animationDelay: `${300 + Math.min(index, 12) * 60}ms` }}
             className="flex flex-col items-center gap-1 text-center motion-safe:animate-[badge-pop_350ms_ease-out_both]"
           >
-            <span className="relative">
+            <ProfileLink person={person} className="relative">
               <PersonAvatar person={person} className="size-12 text-base" />
               {locked.has(person.id) && (
                 <span
@@ -111,7 +112,7 @@ export function Attendance({ event, onChanged }: Props) {
                   {person.id === event.mordomo?.id ? "🎩" : "✓"}
                 </span>
               )}
-            </span>
+            </ProfileLink>
             <span className="w-full truncate text-xs font-medium text-neutral-700">{person.displayName.split(" ")[0]}</span>
           </li>
         ))}
@@ -161,8 +162,10 @@ export function Attendance({ event, onChanged }: Props) {
           <ul className="flex flex-col gap-2">
             {requests.map(({ person }) => (
               <li key={person.id} className="flex items-center gap-2">
-                <PersonAvatar person={person} className="size-9 text-sm" />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">{person.displayName}</span>
+                <ProfileLink person={person} className="flex min-w-0 flex-1 items-center gap-2">
+                  <PersonAvatar person={person} className="size-9 text-sm" />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{person.displayName}</span>
+                </ProfileLink>
                 <button
                   type="button"
                   disabled={busy}
@@ -190,12 +193,12 @@ export function Attendance({ event, onChanged }: Props) {
           <p className="mb-2 text-xs font-semibold text-neutral-400 uppercase">Por responder</p>
           <div className="flex flex-wrap gap-1.5">
             {event.undecided.map((person) => (
-              <span key={person.id} title={person.displayName} aria-label={person.displayName} role="img" className="relative opacity-70">
+              <ProfileLink key={person.id} person={person} className="relative opacity-70">
                 <PersonAvatar person={person} className="size-8 text-xs" />
                 <span aria-hidden="true" className="absolute -right-1 -bottom-1 text-xs">
                   ❔
                 </span>
-              </span>
+              </ProfileLink>
             ))}
           </div>
         </div>
@@ -206,14 +209,14 @@ export function Attendance({ event, onChanged }: Props) {
           <p className="mb-2 text-xs font-semibold text-neutral-400 uppercase">Não vão</p>
           <div className="flex flex-wrap gap-1.5">
             {event.left.map(({ person, rejoinRequested }) => (
-              <span key={person.id} title={person.displayName} aria-label={person.displayName} role="img" className="relative opacity-50 grayscale">
+              <ProfileLink key={person.id} person={person} className="relative opacity-50 grayscale">
                 <PersonAvatar person={person} className="size-8 text-xs" />
                 {rejoinRequested && (
                   <span aria-hidden="true" className="absolute -right-1 -bottom-1 text-xs">
                     ⏳
                   </span>
                 )}
-              </span>
+              </ProfileLink>
             ))}
           </div>
         </div>

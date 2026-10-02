@@ -2,6 +2,7 @@
 
 import { LIST_STATUSES, isListStatus, type ListStatus } from "@/lib/list/types";
 import { customPlaceId, isFoodClass, parseKinds, type SelectedPlace } from "@/lib/map/restaurants";
+import { avatarUrl } from "@/lib/profile/load";
 import { PROFILE_COLUMNS, isId, signedIn, toPeople, type Person, type ProfileRow, type Supabase } from "@/lib/social/people";
 
 // Mordomia Social: search people by username or name, send / accept / remove friend requests, friends feed.
@@ -224,4 +225,18 @@ export async function loadSocialPulse(): Promise<SocialPulse> {
     .order("updated_at", { ascending: false })
     .limit(FEED_LIMIT);
   return { requests, invites, feedTimes: (data ?? []).map((row) => row.updated_at as string) };
+}
+
+export type NavData = SocialPulse & { username: string | null; avatarUrl: string | null };
+
+// For the app's bottom bar (every screen but the map): my avatar and the social badges.
+export async function loadNavData(): Promise<NavData | null> {
+  const session = await signedIn();
+  if (!session) return null;
+  const { supabase, me } = session;
+  const [{ data: profile }, pulse] = await Promise.all([
+    supabase.from("profiles").select("username, avatar_path").eq("id", me).single(),
+    loadSocialPulse(),
+  ]);
+  return { ...pulse, username: profile?.username ?? null, avatarUrl: await avatarUrl(supabase, profile?.avatar_path) };
 }

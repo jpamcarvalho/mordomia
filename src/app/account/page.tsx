@@ -11,16 +11,17 @@ export default async function AccountPage() {
   const { data } = await supabase.auth.getClaims();
   const userId = data!.claims.sub;
 
-  const [{ data: profile }, list] = await Promise.all([
+  const [{ data: profile }, list, { data: friends }] = await Promise.all([
     supabase.from("profiles").select("username, display_name, bio, avatar_path, created_at").eq("id", userId).single(),
     loadList(supabase, userId),
+    supabase.rpc("friend_count", { uid: userId }),
   ]);
 
   return (
     <PullToRefresh>
       <AccountView
         // Changes with the data: after a pull-to-refresh with news, the view starts again from the fresh data.
-        key={dataKey([profile, list.map((item) => [item.entryId, item.status, item.rating])])}
+        key={dataKey([profile, friends, list.map((item) => [item.entryId, item.status, item.rating])])}
         userId={userId}
         username={profile?.username ?? null}
         displayName={profile?.display_name ?? null}
@@ -28,6 +29,7 @@ export default async function AccountPage() {
         avatarUrl={await avatarUrl(supabase, profile?.avatar_path)}
         memberSince={profile?.created_at ?? null}
         stats={accountStats(list)}
+        friendCount={typeof friends === "number" ? friends : null}
       />
     </PullToRefresh>
   );

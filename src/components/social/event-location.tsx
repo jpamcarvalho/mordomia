@@ -1,5 +1,6 @@
 "use client";
 
+import { ProfileLink } from "./profile-link";
 import Link from "next/link";
 import { useState } from "react";
 import { createPortal } from "react-dom";
@@ -137,9 +138,11 @@ export function LocationSection({ event, onChanged }: Props) {
                 </Link>
               </span>
               {suggestion.by && (
-                <span title={`Sugerido por ${suggestion.by.displayName}`} aria-label={`Sugerido por ${suggestion.by.displayName}`} role="img">
-                  <PersonAvatar person={suggestion.by} className="size-7 text-[11px] ring-2 ring-white" />
-                </span>
+                <ProfileLink person={suggestion.by} className="shrink-0">
+                  <span title={`Sugerido por ${suggestion.by.displayName}`}>
+                    <PersonAvatar person={suggestion.by} className="size-7 text-[11px] ring-2 ring-white" />
+                  </span>
+                </ProfileLink>
               )}
               {event.isMordomo ? (
                 <button
