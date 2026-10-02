@@ -17,6 +17,7 @@ import { Spinner } from "@/components/spinner";
 import { DateSection } from "./date-poll";
 import { Attendance, HabemusBanner } from "./event-attendance";
 import { LocationSection } from "./event-location";
+import { PriceSection } from "./event-price";
 import { GroupPhoto, PersonAvatar, groupHref, primary } from "./groups-tab";
 
 type Props = { group: Group; initialEvent: GroupEvent };
@@ -119,7 +120,10 @@ export function EventPage({ group, initialEvent }: Props) {
         )}
 
         {event.date ? (
-          <Attendance event={event} onChanged={refresh} />
+          <>
+            <Attendance event={event} onChanged={refresh} />
+            <PriceSection event={event} onChanged={refresh} />
+          </>
         ) : (
           <>
             {event.mordomo ? (

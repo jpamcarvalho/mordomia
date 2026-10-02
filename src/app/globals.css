@@ -127,6 +127,17 @@ body {
   }
 }
 
+/* "Preço certo": the drum shakes while the price is about to be revealed. */
+@keyframes drum-roll {
+  0%,
+  100% {
+    transform: rotate(-6deg) translateY(0);
+  }
+  50% {
+    transform: rotate(6deg) translateY(-3px);
+  }
+}
+
 /* Map splash: the pin hops, its shadow breathes, the ground pings, the dots blink. Transform/opacity only. */
 @keyframes splash-hop {
   0%,

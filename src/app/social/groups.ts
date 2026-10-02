@@ -292,6 +292,22 @@ export type GroupEvent = {
   suggestions: LocationSuggestion[];
   // I am going and there is no location yet.
   canSuggest: boolean;
+  // "Preço certo": guesses of the price per person, then the bill revealed by the mordomo.
+  price: PriceGame;
+};
+
+export type PriceGame = {
+  // Not opened yet by the mordomo, taking guesses, guesses closed (the mordomo types the bill), or revealed.
+  status: "off" | "open" | "closed" | "revealed";
+  // Set once the mordomo reveals it (final).
+  bill: { total: number; people: number; revealedAt: string } | null;
+  // Who guessed, earliest first (amounts stay secret until the reveal).
+  guessers: Person[];
+  myGuess: number | null;
+  // Everyone's guesses, once the bill is revealed.
+  guesses: { person: Person; amount: number; at: string }[];
+  // I am going and the guesses are open.
+  canGuess: boolean;
 };
 
 export type LocationSuggestion = { id: string; place: SelectedPlace; by: Person | null; mine: boolean };
@@ -305,10 +321,15 @@ type EventRow = {
   created_by: string | null;
   mordomo_id: string | null;
   event_date: string | null;
+  price_opened_at: string | null;
+  price_closed_at: string | null;
   location: RestaurantPlaceRow | null;
 };
 type SuggestionRow = { id: string; event_id: string; suggested_by: string | null; restaurants: RestaurantPlaceRow | null };
 type AttendanceRow = { event_id: string; user_id: string; going: boolean; rejoin_requested_at: string | null };
+type GuessRow = { event_id: string; user_id: string; amount: number | string; created_at: string };
+type GuesserRow = { event_id: string; user_id: string; created_at: string };
+type BillRow = { event_id: string; total: number | string; people: number; revealed_at: string };
 type OptionRow = { id: string; event_id: string; day: string; group_event_date_votes: { user_id: string }[] };
 
 // The group's events, newest first, with the date poll and who is going. RLS returns nothing unless I am a member.
@@ -319,7 +340,7 @@ export async function loadGroupEvents(groupId: string): Promise<GroupEvent[]> {
   const [{ data: eventRows }, { data: group }] = await Promise.all([
     supabase
       .from("group_events")
-      .select(`id, title, created_at, created_by, mordomo_id, event_date, location:restaurants(${RESTAURANT_PLACE_COLUMNS})`)
+      .select(`id, title, created_at, created_by, mordomo_id, event_date, price_opened_at, price_closed_at, location:restaurants(${RESTAURANT_PLACE_COLUMNS})`)
       .eq("group_id", groupId)
       .order("created_at", { ascending: false }),
     supabase.from("groups").select("owner_id").eq("id", groupId).maybeSingle(),
@@ -327,7 +348,15 @@ export async function loadGroupEvents(groupId: string): Promise<GroupEvent[]> {
   const events = (eventRows ?? []) as unknown as EventRow[];
   if (events.length === 0) return [];
   const eventIds = events.map((event) => event.id);
-  const [{ data: attendanceRows }, { data: memberRows }, { data: optionRows }, { data: suggestionRows }] = await Promise.all([
+  const [
+    { data: attendanceRows },
+    { data: memberRows },
+    { data: optionRows },
+    { data: suggestionRows },
+    { data: guessRows },
+    { data: guesserRows },
+    { data: billRows },
+  ] = await Promise.all([
     supabase.from("group_event_attendance").select("event_id, user_id, going, rejoin_requested_at").in("event_id", eventIds),
     supabase.from("group_members").select("user_id").eq("group_id", groupId).eq("status", "member"),
     supabase
@@ -340,13 +369,21 @@ export async function loadGroupEvents(groupId: string): Promise<GroupEvent[]> {
       .select(`id, event_id, suggested_by, restaurants(${RESTAURANT_PLACE_COLUMNS})`)
       .in("event_id", eventIds)
       .order("created_at"),
+    // Mine, plus everyone's once revealed (RLS).
+    supabase.from("group_event_price_guesses").select("event_id, user_id, amount, created_at").in("event_id", eventIds),
+    supabase.rpc("event_price_guessers", { eids: eventIds }),
+    supabase.from("group_event_bills").select("event_id, total, people, revealed_at").in("event_id", eventIds),
   ]);
+  const guesses = (guessRows ?? []) as GuessRow[];
+  const guessers = ((guesserRows ?? []) as GuesserRow[]).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const bills = new Map(((billRows ?? []) as BillRow[]).map((row) => [row.event_id, row]));
   const suggestions = (suggestionRows ?? []) as unknown as SuggestionRow[];
   const attendance = (attendanceRows ?? []) as AttendanceRow[];
   const memberIds = (memberRows ?? []).map((row) => row.user_id as string);
   const options = (optionRows ?? []) as OptionRow[];
   const ids = new Set<string>([...memberIds, ...attendance.map((row) => row.user_id)]);
   for (const row of suggestions) if (row.suggested_by) ids.add(row.suggested_by);
+  for (const row of guessers) ids.add(row.user_id);
   for (const option of options) for (const vote of option.group_event_date_votes) ids.add(vote.user_id);
   for (const event of events) for (const id of [event.created_by, event.mordomo_id]) if (id) ids.add(id);
   const { data: profiles } = await supabase.from("profiles").select(PROFILE_COLUMNS).in("id", [...ids]);
@@ -419,8 +456,36 @@ export async function loadGroupEvents(groupId: string): Promise<GroupEvent[]> {
               : [];
           }),
       canSuggest: !!event.event_date && !event.location && state(me) === "going",
+      price: priceGame(event, me, state(me) === "going", bills.get(event.id), guesses, guessers, people),
     };
   });
+}
+
+function priceGame(
+  event: EventRow,
+  me: string,
+  going: boolean,
+  bill: BillRow | undefined,
+  guesses: GuessRow[],
+  guessers: GuesserRow[],
+  people: Map<string, Person>,
+): PriceGame {
+  const mine = guesses.find((row) => row.event_id === event.id && row.user_id === me);
+  const status = bill ? "revealed" : event.price_closed_at ? "closed" : event.price_opened_at ? "open" : "off";
+  return {
+    status,
+    bill: bill ? { total: Number(bill.total), people: bill.people, revealedAt: bill.revealed_at } : null,
+    guessers: guessers.flatMap((row) => (row.event_id === event.id && people.has(row.user_id) ? [people.get(row.user_id)!] : [])),
+    myGuess: mine ? Number(mine.amount) : null,
+    guesses: bill
+      ? guesses.flatMap((row) =>
+          row.event_id === event.id && people.has(row.user_id)
+            ? [{ person: people.get(row.user_id)!, amount: Number(row.amount), at: row.created_at }]
+            : [],
+        )
+      : [],
+    canGuess: !!event.event_date && going && status === "open",
+  };
 }
 
 // A member creates an event; with `mordomo`, they are its mordomo.
@@ -552,6 +617,44 @@ function parsePlace(input: unknown): SelectedPlace | null {
   if (!isFoodClass(kind) || typeof lat !== "number" || typeof lng !== "number") return null;
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
   return { id, name: name.trim(), kind, lat, lng };
+}
+
+// "Preço certo": the mordomo opens (or reopens) the guesses, or closes them. The database checks who and when.
+export async function setEventPriceGame(eventId: string, open: boolean): Promise<Done> {
+  const session = await signedIn();
+  if (!session || !isId(eventId) || typeof open !== "boolean") return { ok: false };
+  const { error } = await session.supabase.rpc("set_event_price_game", { eid: eventId, open });
+  return { ok: !error };
+}
+
+// "Preço certo": I guess the price per person (or change my guess) before the reveal. The database checks I am going.
+export async function guessEventPrice(eventId: string, amount: unknown): Promise<Done> {
+  const session = await signedIn();
+  if (!session || !isId(eventId) || typeof amount !== "number" || !(amount > 0 && amount <= 10000)) return { ok: false };
+  const { error } = await session.supabase.rpc("guess_event_price", { eid: eventId, guess: Math.round(amount * 100) / 100 });
+  return { ok: !error };
+}
+
+// The mordomo reveals the bill (once, after closing the guesses): the total and how many people split it.
+export async function revealEventBill(eventId: string, total: unknown, people: unknown): Promise<Done> {
+  const session = await signedIn();
+  if (
+    !session ||
+    !isId(eventId) ||
+    typeof total !== "number" ||
+    !(total > 0 && total <= 1000000) ||
+    typeof people !== "number" ||
+    !Number.isInteger(people) ||
+    people < 1 ||
+    people > 500
+  )
+    return { ok: false };
+  const { error } = await session.supabase.rpc("reveal_event_bill", {
+    eid: eventId,
+    bill_total: Math.round(total * 100) / 100,
+    bill_people: people,
+  });
+  return { ok: !error };
 }
 
 // The mordomo sets or changes the location (any restaurant; null clears it). The database checks who.
