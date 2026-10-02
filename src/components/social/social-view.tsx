@@ -16,11 +16,13 @@ import {
   type Relation,
 } from "@/app/social/actions";
 import { refreshNav } from "@/components/app-nav";
+import { FeedSave } from "./feed-save";
 import { ProfileLink } from "./profile-link";
 import { RemoveFriendSheet } from "./remove-friend-sheet";
 import { avatarInitial } from "@/lib/profile/avatar";
 import { kindEmoji } from "@/lib/map/restaurants";
 import { ratingColor } from "@/lib/list/rating-color";
+import type { ListStatus } from "@/lib/list/types";
 import { countNew, markFeedSeen, readFeedSeen, subscribeNothing } from "@/lib/social/seen";
 import { MagnifierIcon } from "@/components/home/search-modal";
 import { GroupsTab } from "@/components/social/groups-tab";
@@ -41,11 +43,13 @@ type Props = {
   initialFriends: Friends;
   initialGroups: Group[];
   feed: FeedItem[];
+  // Which of my lists each place is on (by place id).
+  myLists: Record<string, ListStatus>;
 };
 
 // "Mordomia Social" (/social): Procurar (find friends, answer requests), Grupos (my groups and invites) and Feed
 // (friends' latest additions to their lists). The tabs are in the app's bottom bar (AppNav).
-export function SocialView({ userId, initialFriends, initialGroups, feed }: Props) {
+export function SocialView({ userId, initialFriends, initialGroups, feed, myLists: initialMyLists }: Props) {
   // The tab lives in the address (?tab=…), so a refresh, reload or coming back (e.g. from Perfil) stays on it.
   const tab = parseTab(useSearchParams().get("tab"));
   function setTab(next: SocialTab) {
@@ -53,6 +57,7 @@ export function SocialView({ userId, initialFriends, initialGroups, feed }: Prop
   }
   const [friends, setFriends] = useState<Friends>(initialFriends);
   const [groups, setGroups] = useState<Group[]>(initialGroups);
+  const [myLists, setMyLists] = useState(initialMyLists);
   const count = friends.friends.length;
   // When the Feed was last seen on this device (read on every render, so it updates after leaving the Feed).
   const seen = useSyncExternalStore(subscribeNothing, readFeedSeen, () => null);
@@ -100,7 +105,14 @@ export function SocialView({ userId, initialFriends, initialGroups, feed }: Prop
       <div className="flex-1 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+6rem)]">
         {tab === "procurar" && <FriendsTab friends={friends} onFriends={setFriends} />}
         {tab === "feed" && (
-          <FeedTab items={feed} seen={seen} hasFriends={count > 0} onFindFriends={() => setTab("procurar")} />
+          <FeedTab
+            items={feed}
+            seen={seen}
+            hasFriends={count > 0}
+            onFindFriends={() => setTab("procurar")}
+            myLists={myLists}
+            onSaved={(placeId, status) => setMyLists((lists) => ({ ...lists, [placeId]: status }))}
+          />
         )}
         {tab === "grupos" && (
           <GroupsTab
@@ -376,9 +388,16 @@ function timeAgo(iso: string): string {
 }
 
 // Feed: friends' latest additions to their lists, newest first.
-type FeedProps = { items: FeedItem[]; seen: string | null; hasFriends: boolean; onFindFriends: () => void };
+type FeedProps = {
+  items: FeedItem[];
+  seen: string | null;
+  hasFriends: boolean;
+  onFindFriends: () => void;
+  myLists: Record<string, ListStatus>;
+  onSaved: (placeId: string, status: ListStatus) => void;
+};
 
-function FeedTab({ items, seen, hasFriends, onFindFriends }: FeedProps) {
+function FeedTab({ items, seen, hasFriends, onFindFriends, myLists, onSaved }: FeedProps) {
   if (items.length === 0) {
     return (
       <Empty emoji={hasFriends ? "🍽️" : "👋"} title={hasFriends ? "Ainda nada por aqui" : "Junta os teus amigos"}>
@@ -423,11 +442,11 @@ function FeedTab({ items, seen, hasFriends, onFindFriends }: FeedProps) {
                   <li
                     key={item.id}
                     style={{ animationDelay: `${delay}ms` }}
-                    className={`relative rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 motion-safe:animate-[fork-pop_260ms_ease-out_both] ${
+                    className={`relative rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 focus-within:z-10 motion-safe:animate-[fork-pop_260ms_ease-out_both] ${
                       position === 0 ? "rounded-tl-md" : ""
                     } ${isNew ? "ring-2 ring-accent/50" : "ring-black/5"}`}
                   >
-                    <p className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                       <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">
                         <span aria-hidden="true">{kindEmoji(item.place.kind)} </span>
                         {item.place.name}
@@ -437,7 +456,8 @@ function FeedTab({ items, seen, hasFriends, onFindFriends }: FeedProps) {
                           Novo
                         </span>
                       )}
-                    </p>
+                      <FeedSave place={item.place} mine={myLists[item.place.id]} onSaved={(status) => onSaved(item.place.id, status)} />
+                    </div>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-neutral-500">
                       <span className={item.status === "saved" ? "font-semibold text-accent" : "font-semibold text-violet-600"}>
                         {item.status === "saved" ? "⭐ Já foi" : "🤤 Quer ir"}
