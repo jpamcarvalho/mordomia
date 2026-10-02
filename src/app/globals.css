@@ -172,3 +172,25 @@ body {
     transform: translateY(-2px);
   }
 }
+
+/* Map credit (OpenFreeMap / OpenStreetMap, required by the licence): a small ⓘ under the avatar, top-right. */
+.maplibregl-map .maplibregl-ctrl-top-right {
+  top: calc(env(safe-area-inset-top) + 4.25rem);
+  right: env(safe-area-inset-right);
+}
+
+/* Folded credit: a small, faded ⓘ; full strength while open. */
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact {
+  min-height: 20px;
+  background: transparent;
+  opacity: 0.45;
+}
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button {
+  width: 20px;
+  height: 20px;
+  background-size: 16px;
+}
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact-show {
+  background: rgb(255 255 255 / 0.9);
+  opacity: 1;
+}

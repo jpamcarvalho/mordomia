@@ -229,7 +229,8 @@ export function MapView({
       style: MAP_STYLE_URL,
       center: [initialView.center.lng, initialView.center.lat],
       zoom: toMapLibreZoom(initialView.zoom),
-      attributionControl: { compact: true },
+      // Credit moved to the top-right (under the avatar) so the bottom of the screen is free for the controls.
+      attributionControl: false,
       dragRotate: false,
       pitchWithRotate: false,
       touchPitch: false,
@@ -237,6 +238,7 @@ export function MapView({
     });
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), "top-right");
     mapRef.current = map;
 
     let loaded = false;
@@ -249,6 +251,8 @@ export function MapView({
     });
     map.on("load", () => {
       loaded = true;
+      // The credit starts folded into its ⓘ (tap to read it) instead of spread across the top.
+      containerRef.current?.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
       handlers.current.onLoad();
     });
     // Style or first tiles failing before the map is up → error state. Later tile hiccups are ignored.

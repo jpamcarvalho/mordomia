@@ -364,7 +364,7 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces,
       )}
       {phase === "map" && !placing && (
         <div
-          className="absolute right-[calc(env(safe-area-inset-right)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] z-20 flex flex-col items-end gap-3"
+          className="absolute right-[calc(env(safe-area-inset-right)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-20 flex flex-col items-end gap-3"
         >
           {!fabOpen && (
             <FriendsButton requests={socialPulse.requests} invites={socialPulse.invites} feedTimes={socialPulse.feedTimes} />
@@ -383,7 +383,7 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces,
         </div>
       )}
       {phase === "map" && !placing && !fabOpen && (
-        <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+6.75rem)] left-[calc(env(safe-area-inset-left)+1rem)] z-20">
+        <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] left-[calc(env(safe-area-inset-left)+1rem)] z-20">
           <RecenterButton busy={recentering} onClick={recenter} />
         </div>
       )}
