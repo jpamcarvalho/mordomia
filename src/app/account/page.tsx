@@ -11,8 +11,14 @@ export default async function AccountPage() {
   const { data } = await supabase.auth.getClaims();
   const userId = data!.claims.sub;
 
-  const [{ data: profile }, list, { data: friends }] = await Promise.all([
-    supabase.from("profiles").select("username, display_name, bio, avatar_path, created_at").eq("id", userId).single(),
+  // The photo link is signed as soon as the profile arrives, alongside the other queries.
+  const [[profile, photo], list, { data: friends }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("username, display_name, bio, avatar_path, created_at")
+      .eq("id", userId)
+      .single()
+      .then(async ({ data }) => [data, await avatarUrl(supabase, data?.avatar_path)] as const),
     loadList(supabase, userId),
     supabase.rpc("friend_count", { uid: userId }),
   ]);
@@ -26,7 +32,7 @@ export default async function AccountPage() {
         username={profile?.username ?? null}
         displayName={profile?.display_name ?? null}
         bio={profile?.bio ?? null}
-        avatarUrl={await avatarUrl(supabase, profile?.avatar_path)}
+        avatarUrl={photo}
         memberSince={profile?.created_at ?? null}
         stats={accountStats(list)}
         friendCount={typeof friends === "number" ? friends : null}

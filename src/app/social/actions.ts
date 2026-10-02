@@ -234,9 +234,14 @@ export async function loadNavData(): Promise<NavData | null> {
   const session = await signedIn();
   if (!session) return null;
   const { supabase, me } = session;
-  const [{ data: profile }, pulse] = await Promise.all([
-    supabase.from("profiles").select("username, avatar_path").eq("id", me).single(),
+  const [[username, photo], pulse] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("username, avatar_path")
+      .eq("id", me)
+      .single()
+      .then(async ({ data }) => [data?.username ?? null, await avatarUrl(supabase, data?.avatar_path)] as const),
     loadSocialPulse(),
   ]);
-  return { ...pulse, username: profile?.username ?? null, avatarUrl: await avatarUrl(supabase, profile?.avatar_path) };
+  return { ...pulse, username, avatarUrl: photo };
 }

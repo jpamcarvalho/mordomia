@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { loadNavData, type NavData } from "@/app/social/actions";
+import type { NavData } from "@/app/social/actions";
 import { MagnifierIcon } from "@/components/home/search-modal";
 import { avatarInitial } from "@/lib/profile/avatar";
 import { badgeText, countNew, readFeedSeen, subscribeNothing } from "@/lib/social/seen";
@@ -27,6 +27,16 @@ function tabHref(tab: NavTab): string {
 
 // Kept between mounts so the bar shows the avatar and badges straight away after the first load.
 let cached: NavData | null = null;
+let loadedAt = 0;
+
+// Badges are refreshed after the new screen has settled, and at most this often when just moving between screens.
+const SETTLE_MS = 400;
+const FRESH_MS = 15_000;
+
+async function fetchNavData(): Promise<NavData | null> {
+  const response = await fetch("/api/nav", { cache: "no-store" });
+  return response.ok ? ((await response.json()) as NavData) : null;
+}
 
 // The app's bottom bar (Mapa, Procurar, Grupos, Feed, Perfil), on every screen except the map.
 export function AppNav() {
@@ -37,23 +47,31 @@ export function AppNav() {
   const seen = useSyncExternalStore(subscribeNothing, readFeedSeen, () => null);
   const hidden = hiddenOn(pathname);
 
-  // Fresh badges on every screen change, and when a page asks for it.
+  // Fresh badges after a screen change (unless just loaded), when a page asks for it, and when the app comes back
+  // to the foreground. Deferred so the new screen gets the network first.
   useEffect(() => {
     if (hidden) return;
     let cancelled = false;
     const load = () =>
-      void loadNavData()
+      void fetchNavData()
         .then((next) => {
           if (cancelled || !next) return;
           cached = next;
+          loadedAt = Date.now();
           setData(next);
         })
         .catch(() => {});
-    load();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    const timer = Date.now() - loadedAt > FRESH_MS ? window.setTimeout(load, cached ? SETTLE_MS : 0) : undefined;
     window.addEventListener(NAV_EVENT, load);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
       window.removeEventListener(NAV_EVENT, load);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [hidden, pathname, tabParam]);
 
