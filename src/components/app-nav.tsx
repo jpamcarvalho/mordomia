@@ -16,6 +16,27 @@ export function refreshNav() {
   window.dispatchEvent(new Event(NAV_EVENT));
 }
 
+// Overlays on the map that want the bar (e.g. "Minha lista") turn it on while they are open.
+const SHOW_EVENT = "mordomia:nav-show";
+const MAP_EVENT = "mordomia:nav-map";
+let shownOnMap = false;
+
+export function showNavOnMap(show: boolean) {
+  shownOnMap = show;
+  window.dispatchEvent(new Event(SHOW_EVENT));
+}
+
+function subscribeShown(onChange: () => void) {
+  window.addEventListener(SHOW_EVENT, onChange);
+  return () => window.removeEventListener(SHOW_EVENT, onChange);
+}
+
+// "Mapa" tapped while such an overlay is open: it should close and leave the map.
+export function onNavMap(handler: () => void) {
+  window.addEventListener(MAP_EVENT, handler);
+  return () => window.removeEventListener(MAP_EVENT, handler);
+}
+
 // Screens without the bar: the map has its own floating buttons; sign-in comes before the app.
 function hiddenOn(pathname: string): boolean {
   return pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/auth");
@@ -45,7 +66,8 @@ export function AppNav() {
   const tabParam = search.get("tab");
   const [data, setData] = useState<NavData | null>(cached);
   const seen = useSyncExternalStore(subscribeNothing, readFeedSeen, () => null);
-  const hidden = hiddenOn(pathname);
+  const overMap = useSyncExternalStore(subscribeShown, () => shownOnMap, () => false);
+  const hidden = hiddenOn(pathname) && !(pathname === "/" && overMap);
 
   // Fresh badges after a screen change (unless just loaded), when a page asks for it, and when the app comes back
   // to the foreground. Deferred so the new screen gets the network first.
@@ -99,10 +121,18 @@ export function AppNav() {
   return (
     <nav
       aria-label="Navegação"
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-neutral-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      className={`fixed inset-x-0 bottom-0 ${overMap && pathname === "/" ? "z-50" : "z-20"} border-t border-neutral-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur`}
     >
       <div className="mx-auto flex max-w-md">
-        <Link href="/" className={`${item} text-neutral-500`}>
+        <Link
+          href="/"
+          onClick={(event) => {
+            if (pathname !== "/") return;
+            event.preventDefault();
+            window.dispatchEvent(new Event(MAP_EVENT));
+          }}
+          className={`${item} text-neutral-500`}
+        >
           <MapIcon />
           Mapa
         </Link>

@@ -6,6 +6,7 @@ import { searchList } from "@/lib/list/search";
 import { filterByKinds, filterByRating, kindCounts, ratingOptions, sameRatingFilter, type RatingFilter } from "@/lib/list/filter";
 import { kindEmoji, kindLabel, kindsLabel, placeKinds, type FoodClass } from "@/lib/map/restaurants";
 import { ratingColor } from "@/lib/list/rating-color";
+import { onNavMap, showNavOnMap } from "@/components/app-nav";
 import { CutleryIcon } from "./list-fab";
 import { MagnifierIcon } from "./search-modal";
 
@@ -20,14 +21,15 @@ type Props = {
   removing: string | null;
   onPick: (item: ListItem) => void;
   onRemove: (item: ListItem) => void;
+  // Open on this list (from a link); otherwise on the first list that has something in it.
+  initialTab?: ListStatus | null;
   onClose: () => void;
 };
 
 // Full-screen page with the user's two private lists as tabs.
-export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props) {
-  // Open on the first list that has something in it.
+export function ListPanel({ items, removing, onPick, onRemove, initialTab, onClose }: Props) {
   const [tab, setTab] = useState<ListStatus>(
-    () => LIST_STATUSES.find((status) => items.some((item) => item.status === status)) ?? "saved",
+    () => initialTab ?? LIST_STATUSES.find((status) => items.some((item) => item.status === status)) ?? "saved",
   );
   const [query, setQuery] = useState("");
   // Type filter (any of these); kept when switching tabs.
@@ -37,6 +39,20 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
   // The filter dropdown that is open.
   const [sheet, setSheet] = useState<"kind" | "rating" | null>(null);
   const laneRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
+
+  // The app's bottom bar shows over the list; its "Mapa" closes the list.
+  useEffect(() => {
+    showNavOnMap(true);
+    const off = onNavMap(() => closeRef.current());
+    return () => {
+      showNavOnMap(false);
+      off();
+    };
+  }, []);
 
   useEffect(() => {
     if (!sheet) return;
@@ -242,7 +258,7 @@ export function ListPanel({ items, removing, onPick, onRemove, onClose }: Props)
         )}
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+6rem)]">
         {shown.length === 0 && searching && !(filtering && base.length > 0) ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
             <span className="flex size-20 items-center justify-center rounded-full bg-accent/10 text-accent">

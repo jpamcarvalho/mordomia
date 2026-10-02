@@ -17,7 +17,7 @@ import {
 } from "@/lib/map/location";
 import { ALL_LISTS, parseShownLists, shownPlaces, type ShownLists } from "@/lib/map/my-places";
 import { homePhase, type MapStatus } from "@/lib/map/phase";
-import { placeFromSearch } from "@/lib/map/place-link";
+import { listFromSearch, placeFromSearch } from "@/lib/map/place-link";
 import type { SelectedPlace } from "@/lib/map/restaurants";
 import { AvatarLink } from "./avatar-link";
 import { FlyingCutlery } from "./flying-cutlery";
@@ -62,6 +62,8 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces,
   const [list, setList] = useState<ListItem[]>(initialList);
   const [fabOpen, setFabOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
+  // The tab the list opens on when it was asked for by a link (profile stats); otherwise the panel picks.
+  const [listTab, setListTab] = useState<ListStatus | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   // Restaurants added by users (shared), drawn on the map next to the OpenStreetMap ones.
   const [customPlaces, setCustomPlaces] = useState<SelectedPlace[]>(initialCustomPlaces);
@@ -145,6 +147,13 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces,
     const linked = placeFromSearch(window.location.search);
     if (linked) {
       setSelected(linked);
+      window.history.replaceState(null, "", "/");
+    }
+    // Opened from the profile ("Visitei" / "Quero ir"): show that list.
+    const linkedList = listFromSearch(window.location.search);
+    if (linkedList) {
+      setListTab(linkedList);
+      setListOpen(true);
       window.history.replaceState(null, "", "/");
     }
   }, []);
@@ -401,7 +410,11 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces,
           removing={removing}
           onPick={pick}
           onRemove={remove}
-          onClose={() => setListOpen(false)}
+          initialTab={listTab}
+          onClose={() => {
+            setListOpen(false);
+            setListTab(null);
+          }}
         />
       )}
       {phase === "map" && searchOpen && location && (

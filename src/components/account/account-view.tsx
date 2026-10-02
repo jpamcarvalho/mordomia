@@ -9,6 +9,7 @@ import { Spinner } from "@/components/spinner";
 import { LevelsSheet } from "./levels-sheet";
 import { BIO_MAX, DISPLAY_NAME_MAX, levelFor, type AccountStats } from "@/lib/profile/account";
 import { ratingColor } from "@/lib/list/rating-color";
+import { listHref } from "@/lib/map/place-link";
 import { avatarInitial } from "@/lib/profile/avatar";
 import { AVATAR_BUCKET } from "@/lib/profile/load";
 import { toSquareJpeg } from "@/lib/profile/square-photo";
@@ -94,8 +95,8 @@ export function AccountView({ userId, username, displayName, bio, avatarUrl, mem
         <LevelCard went={stats.went} level={level} style={delay(80)} />
 
         <section style={delay(160)} className={`grid grid-cols-3 gap-3 ${ENTER}`}>
-          <StatCard emoji="🍽️" label="Onde já fui" value={stats.went} highlight />
-          <StatCard emoji="🤤" label="Quero ir" value={stats.want} />
+          <StatCard emoji="🍽️" label="Visitei" value={stats.went} href={listHref("saved")} highlight />
+          <StatCard emoji="🤤" label="Quero ir" value={stats.want} href={listHref("want")} />
           <StatCard emoji="⭐" label="Nota média" value={stats.average} decimals={1} />
         </section>
 
@@ -394,26 +395,35 @@ function StatCard({
   value,
   decimals = 0,
   highlight = false,
+  href,
 }: {
   emoji: string;
   label: string;
   value: number | null;
   decimals?: number;
   highlight?: boolean;
+  // Opens that list on the map.
+  href?: string;
 }) {
   const shown = useCountUp(value ?? 0, decimals);
-  return (
-    <div
-      className={`flex flex-col items-center gap-1 rounded-3xl p-4 text-center shadow-sm transition hover:-translate-y-0.5 active:scale-95 ${
-        highlight ? "bg-accent text-white" : "bg-white"
-      }`}
-    >
+  const className = `flex flex-col items-center gap-1 rounded-3xl p-4 text-center shadow-sm transition hover:-translate-y-0.5 active:scale-95 ${
+    highlight ? "bg-accent text-white" : "bg-white"
+  }`;
+  const content = (
+    <>
       <span aria-hidden="true" className="text-2xl">
         {emoji}
       </span>
       <span className="text-3xl font-extrabold tabular-nums">{value === null ? "–" : shown}</span>
       <span className={`text-xs font-medium ${highlight ? "text-white/85" : "text-neutral-500"}`}>{label}</span>
-    </div>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={className}>
+      {content}
+    </Link>
+  ) : (
+    <div className={className}>{content}</div>
   );
 }
 
