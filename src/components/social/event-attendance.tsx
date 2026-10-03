@@ -3,7 +3,7 @@
 import { ProfileLink } from "./profile-link";
 import { useState } from "react";
 import { answerGroupEvent, answerGroupEventRejoin, requestGroupEventRejoin, type GroupEvent } from "@/app/social/groups";
-import { formatDay } from "@/lib/social/dates";
+import { formatDay, formatDayTime } from "@/lib/social/dates";
 import { PersonAvatar, primary, secondary } from "./groups-tab";
 
 // Confetti pieces: emoji, left position (%), delay (ms), spin.
@@ -18,12 +18,12 @@ const CONFETTI: [string, number, number, string][] = [
   ["🥳", 92, 440, "-260deg"],
 ];
 
-// "Habemus data!": white smoke, falling confetti (once, on arrival) and the chosen day.
-export function HabemusBanner({ day }: { day: string }) {
+// "Habemus data!": white smoke, falling confetti (once, on arrival) and the chosen day (and time, once set).
+export function HabemusBanner({ day, time }: { day: string; time: string | null }) {
   const date = new Date(`${day}T12:00:00`);
   return (
     <section
-      aria-label={`Habemus data: ${formatDay(day)}`}
+      aria-label={`Habemus data: ${formatDayTime(day, time)}`}
       className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-300 via-orange-300 to-rose-300 px-5 pt-6 pb-5 text-center shadow-lg motion-safe:animate-[badge-pop_500ms_ease-out_both]"
     >
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
@@ -57,7 +57,10 @@ export function HabemusBanner({ day }: { day: string }) {
           </span>
           <span className="bg-white py-1.5 text-3xl font-black">{date.getDate()}</span>
         </span>
-        <span className="text-left text-lg leading-tight font-bold text-orange-950 first-letter:uppercase">{formatDay(day)}</span>
+        <span className="text-left text-lg leading-tight font-bold text-orange-950">
+          <span className="block first-letter:uppercase">{formatDay(day)}</span>
+          {time && <span className="mt-1 block text-base text-orange-900/80">🕗 às {time}</span>}
+        </span>
       </div>
     </section>
   );

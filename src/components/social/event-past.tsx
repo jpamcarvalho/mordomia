@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { GroupEvent } from "@/app/social/groups";
-import { formatDay } from "@/lib/social/dates";
+import { formatDayTime } from "@/lib/social/dates";
 import { mapHref } from "@/lib/map/place-link";
 import { kindEmoji } from "@/lib/map/restaurants";
 import { formatEuros, pricePerPerson, rankGuesses } from "@/lib/social/price-guess";
@@ -25,7 +25,7 @@ export function PastEvent({ event }: { event: GroupEvent }) {
       <header className="motion-safe:animate-[sheet-up_400ms_ease-out_both]">
         <p className="text-xs font-semibold tracking-wide text-neutral-500 uppercase">🏁 Evento passado</p>
         <h1 className="text-3xl leading-tight font-bold">{event.title}</h1>
-        {event.date && <p className="mt-1 text-sm font-medium text-neutral-500 first-letter:uppercase">{formatDay(event.date)}</p>}
+        {event.date && <p className="mt-1 text-sm font-medium text-neutral-500 first-letter:uppercase">{formatDayTime(event.date, event.startTime)}</p>}
       </header>
 
       <ul className="flex flex-col gap-3">

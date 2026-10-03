@@ -26,6 +26,11 @@ export function formatDay(key: string): string {
 }
 
 // "sáb., 12/out." style, for chips.
+// "sábado, 10 de outubro às 20:30" (just the day without a time).
+export function formatDayTime(key: string, time: string | null): string {
+  return time ? `${formatDay(key)} às ${time}` : formatDay(key);
+}
+
 export function formatDayShort(key: string): string {
   return SHORT.format(toDate(key));
 }

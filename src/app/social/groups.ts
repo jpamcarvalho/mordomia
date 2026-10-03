@@ -286,6 +286,8 @@ export type GroupEvent = {
   isMordomo: boolean;
   // The event's day (YYYY-MM-DD), once the mordomo closed the poll ("Habemus data").
   date: string | null;
+  // When it starts ("HH:MM"), set by the mordomo once the restaurant is chosen (optional; can change until closed).
+  startTime: string | null;
   // The days of the date poll, in order; empty when there is no poll yet.
   dateOptions: DateOption[];
   // Where: a restaurant, chosen by the mordomo (optional; can change).
@@ -325,6 +327,7 @@ type EventRow = {
   created_by: string | null;
   mordomo_id: string | null;
   event_date: string | null;
+  start_time: string | null;
   price_opened_at: string | null;
   price_closed_at: string | null;
   closed_at: string | null;
@@ -346,7 +349,7 @@ export async function loadGroupEvents(groupId: string): Promise<GroupEvent[]> {
   const [{ data: eventRows }, { data: group }] = await Promise.all([
     supabase
       .from("group_events")
-      .select(`id, title, created_at, created_by, mordomo_id, event_date, price_opened_at, price_closed_at, closed_at, share_code, location:restaurants(${RESTAURANT_PLACE_COLUMNS})`)
+      .select(`id, title, created_at, created_by, mordomo_id, event_date, start_time, price_opened_at, price_closed_at, closed_at, share_code, location:restaurants(${RESTAURANT_PLACE_COLUMNS})`)
       .eq("group_id", groupId)
       .order("created_at", { ascending: false }),
     supabase.from("groups").select("owner_id").eq("id", groupId).maybeSingle(),
@@ -444,6 +447,8 @@ export async function loadGroupEvents(groupId: string): Promise<GroupEvent[]> {
       canRollMordomo: !event.mordomo_id && event.created_by === me,
       isMordomo: event.mordomo_id === me,
       date: event.event_date,
+      // Postgres sends "20:30:00".
+      startTime: event.start_time ? event.start_time.slice(0, 5) : null,
       dateOptions: options
         .filter((option) => option.event_id === event.id)
         .map((option) => ({
@@ -694,6 +699,18 @@ export async function setEventLocation(eventId: string, place: unknown): Promise
     if (!restaurantId) return { ok: false };
   }
   const { error } = await session.supabase.rpc("set_event_location", { eid: eventId, rid: restaurantId });
+  return { ok: !error };
+}
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// The mordomo sets, changes or clears (null) the start time ("HH:MM"). The database checks who, and that the
+// event has a restaurant and is not closed.
+export async function setEventStartTime(eventId: string, time: unknown): Promise<Done> {
+  const session = await signedIn();
+  if (!session || !isId(eventId)) return { ok: false };
+  if (time !== null && (typeof time !== "string" || !TIME_RE.test(time))) return { ok: false };
+  const { error } = await session.supabase.rpc("set_event_start_time", { eid: eventId, t: time });
   return { ok: !error };
 }
 

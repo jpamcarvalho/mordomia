@@ -4,7 +4,7 @@ import { ProfileLink } from "./profile-link";
 import Link from "next/link";
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { setEventLocation, suggestEventLocation, withdrawLocationSuggestion, type GroupEvent } from "@/app/social/groups";
+import { setEventLocation, setEventStartTime, suggestEventLocation, withdrawLocationSuggestion, type GroupEvent } from "@/app/social/groups";
 import { SearchModal } from "@/components/home/search-modal";
 import { PORTO } from "@/lib/map/config";
 import { mapHref } from "@/lib/map/place-link";
@@ -33,6 +33,8 @@ type Props = { event: GroupEvent; onChanged: () => Promise<void> };
 export function LocationSection({ event, onChanged }: Props) {
   const [searching, setSearching] = useState<"set" | "suggest" | null>(null);
   const [busy, setBusy] = useState(false);
+  // The mordomo editing the start time: the value in the time field.
+  const [timeDraft, setTimeDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const mordomoName = event.mordomo?.displayName ?? "O mordomo";
 
@@ -74,6 +76,16 @@ export function LocationSection({ event, onChanged }: Props) {
             <span className="block text-sm text-neutral-500">{kindsLabel(placeKinds(place))}</span>
           </span>
         </div>
+        <StartTime
+          event={event}
+          draft={timeDraft}
+          busy={busy}
+          onDraft={setTimeDraft}
+          onSave={(time) => {
+            setTimeDraft(null);
+            void run(() => setEventStartTime(event.id, time));
+          }}
+        />
         <div className="mt-4 flex gap-2">
           <Link href={mapHref(place)} className={`${primary} flex flex-1 items-center justify-center gap-1.5`}>
             <span aria-hidden="true">🗺️</span> Ver no mapa
@@ -186,5 +198,89 @@ export function LocationSection({ event, onChanged }: Props) {
       {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {search}
     </section>
+  );
+}
+
+// When it starts: "às 20:30" or "Hora por definir". The mordomo sets, changes or clears it (time field + Guardar).
+function StartTime({
+  event,
+  draft,
+  busy,
+  onDraft,
+  onSave,
+}: {
+  event: GroupEvent;
+  draft: string | null;
+  busy: boolean;
+  onDraft: (value: string | null) => void;
+  onSave: (time: string | null) => void;
+}) {
+  if (draft !== null) {
+    return (
+      <form
+        className="mt-3 flex flex-col gap-2 rounded-2xl bg-orange-50 p-3"
+        onSubmit={(submit) => {
+          submit.preventDefault();
+          if (draft) onSave(draft);
+        }}
+      >
+        <label className="flex items-center gap-2">
+          <span aria-hidden="true" className="text-xl">
+            🕗
+          </span>
+          <input
+            type="time"
+            aria-label="Hora de início"
+            value={draft}
+            onChange={(change) => onDraft(change.target.value)}
+            autoFocus
+            required
+          className="h-11 min-w-0 flex-1 rounded-xl border border-orange-200 bg-white px-3 text-lg font-semibold outline-none focus:border-accent"
+          />
+        </label>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => onDraft(null)} className={`${secondary} flex-1`}>
+            Cancelar
+          </button>
+          <button type="submit" disabled={busy || !draft} className={`${primary} flex-1`}>
+            Guardar
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex items-center gap-3 rounded-2xl bg-neutral-50 px-3 py-2.5">
+      <span aria-hidden="true" className="text-xl">
+        🕗
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-semibold tracking-wide text-neutral-400 uppercase">Hora</span>
+        {event.startTime ? (
+          <span className="block text-lg font-bold">às {event.startTime}</span>
+        ) : (
+          <span className="block text-sm text-neutral-500">Hora por definir</span>
+        )}
+      </span>
+      {event.isMordomo && (
+        <span className="flex shrink-0 items-center gap-1">
+          {event.startTime && (
+            <button
+              type="button"
+              disabled={busy}
+              aria-label="Tirar a hora"
+              onClick={() => onSave(null)}
+              className="flex size-9 items-center justify-center rounded-full text-neutral-400 hover:bg-white"
+            >
+              ✕
+            </button>
+          )}
+          <button type="button" disabled={busy} onClick={() => onDraft(event.startTime ?? "20:00")} className={secondary}>
+            {event.startTime ? "Mudar" : "Definir hora"}
+          </button>
+        </span>
+      )}
+    </div>
   );
 }

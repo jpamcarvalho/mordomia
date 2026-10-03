@@ -1,7 +1,7 @@
 "use client";
 
 import type { GroupEvent } from "@/app/social/groups";
-import { formatDay } from "@/lib/social/dates";
+import { formatDayTime } from "@/lib/social/dates";
 
 // "Partilhar": the phone's share sheet (WhatsApp, Mensagens…) with the event's title, date and short link (/e/<code>);
 // where there is no share sheet (desktop), WhatsApp Web. The link only opens for the group's members (RLS + login).
@@ -9,7 +9,7 @@ import { formatDay } from "@/lib/social/dates";
 export function ShareEvent({ event, className = "" }: { event: GroupEvent; className?: string }) {
   async function share() {
     const url = `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/e/${event.shareCode}`;
-    const text = `🍽️ ${event.title}${event.date ? ` — ${formatDay(event.date)}` : ""}`;
+    const text = `🍽️ ${event.title}${event.date ? ` — ${formatDayTime(event.date, event.startTime)}` : ""}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: event.title, text, url });

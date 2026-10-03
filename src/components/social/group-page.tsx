@@ -16,7 +16,7 @@ import {
 import type { Person } from "@/app/social/actions";
 import { Spinner } from "@/components/spinner";
 import { EVENT_TITLE_MAX } from "@/lib/social/groups";
-import { formatDay } from "@/lib/social/dates";
+import { formatDay, formatDayTime } from "@/lib/social/dates";
 import { mapHref } from "@/lib/map/place-link";
 import { kindEmoji } from "@/lib/map/restaurants";
 import { priceWinner } from "./event-past";
@@ -362,7 +362,7 @@ function EventCard({ event, index, onChanged }: { event: GroupEvent; index: numb
         <div className="mt-3 flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-100 to-rose-100 px-3 py-2">
           <span className="min-w-0 flex-1">
             <span className="block text-xs font-bold text-orange-800">🎉 Habemus data</span>
-            <span className="block truncate text-sm font-semibold first-letter:uppercase">{formatDay(event.date)}</span>
+            <span className="block truncate text-sm font-semibold first-letter:uppercase">{formatDayTime(event.date, event.startTime)}</span>
           </span>
           <span className="flex -space-x-2">
             {event.going.slice(0, 4).map((person) => (

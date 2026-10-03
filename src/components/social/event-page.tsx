@@ -82,7 +82,8 @@ export function EventPage({ group, initialEvent }: Props) {
             <GroupPhoto group={group} className="size-7 rounded-lg text-sm" />
             <span className="truncate text-sm font-semibold text-neutral-600">{group.name}</span>
           </Link>
-          {live && (
+          {/* A closed event is frozen: nothing live to show and nothing to share any more. */}
+          {live && !event.closedAt && (
             <span title="Atualiza sozinho quando alguém mexe no evento" className="ml-auto flex shrink-0 items-center gap-1.5 text-xs font-semibold text-emerald-700">
               <span className="relative flex size-2">
                 <span className="absolute inset-0 rounded-full bg-emerald-500 opacity-75 motion-safe:animate-ping" />
@@ -91,7 +92,7 @@ export function EventPage({ group, initialEvent }: Props) {
               Ao vivo
             </span>
           )}
-          <ShareEvent event={event} className={live ? "" : "ml-auto"} />
+          {!event.closedAt && <ShareEvent event={event} className={live ? "" : "ml-auto"} />}
         </div>
 
         {event.closedAt ? (
@@ -107,7 +108,7 @@ export function EventPage({ group, initialEvent }: Props) {
           {event.createdBy && <p className="mt-1 text-sm text-neutral-500">Criado por {event.createdBy.displayName}</p>}
         </header>
 
-        {event.date && <HabemusBanner day={event.date} />}
+        {event.date && <HabemusBanner day={event.date} time={event.startTime} />}
         {event.date && <LocationSection event={event} onChanged={refresh} />}
 
         {event.mordomo ? (
