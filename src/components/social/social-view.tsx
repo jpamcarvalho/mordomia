@@ -84,20 +84,23 @@ export function SocialView({ userId, initialFriends, initialGroups, feed, myList
 
   return (
     <main className="flex min-h-dvh flex-col bg-neutral-50">
-      <header className="sticky top-0 z-10 bg-white px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3 shadow-sm">
+      {/* Warm like the login and the splash; frosted while the list scrolls under it. */}
+      <header className="sticky top-0 z-10 border-b border-orange-100/80 bg-gradient-to-b from-orange-100/95 to-orange-50/90 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <Link
             href="/"
             aria-label="Voltar ao mapa"
-            className="-ml-1 flex size-10 items-center justify-center rounded-full text-foreground hover:bg-neutral-100"
+            className="-ml-1 flex size-10 items-center justify-center rounded-full text-foreground hover:bg-white/60"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="size-6">
               <path d="M15 5l-7 7 7 7" />
             </svg>
           </Link>
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold">Mordomia Social</h1>
-            <p className="text-sm text-neutral-500">{count === 1 ? "1 amigo" : `${count} amigos`}</p>
+            <h1 className="text-2xl font-extrabold tracking-tight">Mordomia Social</h1>
+            <p className="mt-0.5 w-fit rounded-full bg-white/70 px-2 py-0.5 text-xs font-semibold text-orange-800 ring-1 ring-orange-200/70">
+              👥 {count === 1 ? "1 amigo" : `${count} amigos`}
+            </p>
           </div>
         </div>
       </header>
@@ -185,8 +188,8 @@ function FriendsTab({ friends, onFriends }: { friends: Friends; onFriends: (next
 
   return (
     <>
-      <div className="mb-4 flex h-11 items-center gap-2 rounded-full bg-neutral-100 px-4 focus-within:ring-2 focus-within:ring-accent/40">
-        <MagnifierIcon className="size-5 shrink-0 text-neutral-500" />
+      <div className="group mb-5 flex h-12 items-center gap-2.5 rounded-2xl bg-white px-4 shadow-sm ring-1 ring-black/5 transition focus-within:shadow-md focus-within:ring-2 focus-within:ring-accent/50">
+        <MagnifierIcon className="size-5 shrink-0 text-neutral-400 transition group-focus-within:text-accent" />
         <input
           type="text"
           inputMode="search"
@@ -210,7 +213,7 @@ function FriendsTab({ friends, onFriends }: { friends: Friends; onFriends: (next
               setQuery("");
               setResults(null);
             }}
-            className="-mr-1 flex size-7 items-center justify-center rounded-full leading-none text-neutral-500 hover:bg-neutral-200"
+            className="-mr-1 flex size-7 items-center justify-center rounded-full bg-neutral-100 text-xs leading-none text-neutral-500 hover:bg-neutral-200"
           >
             ✕
           </button>
@@ -220,16 +223,18 @@ function FriendsTab({ friends, onFriends }: { friends: Friends; onFriends: (next
       {error && <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {q && tooShort ? (
-        <p className="text-sm text-neutral-500">Escreve pelo menos 2 letras.</p>
+        <p className="px-1 text-sm text-neutral-500">Escreve pelo menos 2 letras.</p>
       ) : q ? (
         results === null || searching ? (
-          <p className="text-sm text-neutral-500">A procurar…</p>
+          <SearchSkeleton />
         ) : results.length === 0 ? (
-          <p className="text-sm text-neutral-600">Ninguém encontrado com “{q}”.</p>
+          <Empty emoji="🔎" title={`Ninguém encontrado com “${q}”`}>
+            Confirma o nome ou experimenta o @utilizador.
+          </Empty>
         ) : (
           <PeopleList>
             {results.map((person) => (
-              <PersonRow key={person.id} person={person}>
+              <PersonRow key={person.id} person={person} query={q}>
                 <RelationActions person={person} relation={person.relation} busy={busy === person.id} onAct={act} />
               </PersonRow>
             ))}
@@ -277,7 +282,7 @@ function FriendsTab({ friends, onFriends }: { friends: Friends; onFriends: (next
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="mb-2 px-1 text-sm font-semibold text-neutral-500">{title}</h2>
+      <h2 className="mb-2 px-1 text-xs font-bold tracking-wide text-neutral-400 uppercase">{title}</h2>
       <PeopleList>{children}</PeopleList>
     </section>
   );
@@ -287,25 +292,57 @@ function PeopleList({ children }: { children: React.ReactNode }) {
   return <ul className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">{children}</ul>;
 }
 
-function PersonRow({ person, children }: { person: Person; children: React.ReactNode }) {
+function PersonRow({ person, query, children }: { person: Person; query?: string; children: React.ReactNode }) {
   return (
-    <li className="flex items-center gap-3 border-b border-neutral-100 px-4 py-3 last:border-0">
+    <li className="flex items-center gap-3 border-b border-neutral-100 px-4 py-3 transition last:border-0 hover:bg-orange-50/40 motion-safe:animate-[fade-in_200ms_ease-out]">
       <ProfileLink person={person} className="flex min-w-0 flex-1 items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-semibold text-white">
-          {person.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- signed Supabase URL
-            <img src={person.avatarUrl} alt="" className="size-full object-cover" />
-          ) : (
-            avatarInitial(person.username)
-          )}
-        </span>
+        <Avatar person={person} className="size-11 text-base shadow-sm ring-2 ring-white" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold">{person.displayName}</span>
-          <span className="block truncate text-sm text-neutral-500">@{person.username}</span>
+          <span className="block truncate font-semibold">
+            <Highlight text={person.displayName} query={query} />
+          </span>
+          <span className="block truncate text-sm text-neutral-500">
+            @<Highlight text={person.username} query={query?.replace(/^@/, "")} />
+          </span>
         </span>
       </ProfileLink>
       {children}
     </li>
+  );
+}
+
+// The part of the text that matches the search, in bold accent (ignoring case and accents, like the search).
+function Highlight({ text, query }: { text: string; query?: string }) {
+  const fold = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const needle = query ? fold(query) : "";
+  // Fold char by char so positions in the folded text match the original.
+  const folded = [...text].map((char) => fold(char) || char).join("");
+  const at = needle && folded.length === text.length ? folded.indexOf(needle) : -1;
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark className="bg-transparent font-bold text-accent">{text.slice(at, at + needle.length)}</mark>
+      {text.slice(at + needle.length)}
+    </>
+  );
+}
+
+// While the search runs: placeholder rows shaped like the results.
+function SearchSkeleton() {
+  return (
+    <ul aria-label="A procurar…" className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+      {[0, 1, 2].map((row) => (
+        <li key={row} className="flex items-center gap-3 border-b border-neutral-100 px-4 py-3 last:border-0">
+          <span className="size-11 shrink-0 animate-pulse rounded-full bg-neutral-200" />
+          <span className="flex flex-1 flex-col gap-2">
+            <span className="h-3.5 w-2/5 animate-pulse rounded-full bg-neutral-200" />
+            <span className="h-3 w-1/4 animate-pulse rounded-full bg-neutral-100" />
+          </span>
+          <span className="h-9 w-24 animate-pulse rounded-full bg-neutral-100" />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -424,33 +461,38 @@ function FeedTab({ items, seen, hasFriends, onFindFriends, myLists, onSaved }: F
   }
   let index = 0;
   return (
-    <ul className="flex flex-col gap-4">
+    <ul className="flex flex-col gap-6">
       {runs.map((run) => (
-        <li key={run[0].id} className="flex items-start gap-2.5">
-          <ProfileLink person={run[0].person} className="mt-5 shrink-0">
-            <Avatar person={run[0].person} />
+        <li key={run[0].id}>
+          <ProfileLink person={run[0].person} className="group mb-2.5 flex w-fit items-center gap-2.5">
+            <Avatar person={run[0].person} className="size-10 shadow-sm ring-2 ring-white" />
+            <span className="truncate text-[15px] font-bold group-hover:text-accent">{run[0].person.displayName}</span>
           </ProfileLink>
-          <div className="min-w-0 flex-1">
-            <ProfileLink person={run[0].person} className="mb-1 ml-1 inline-block text-xs font-semibold text-neutral-500 hover:text-accent">
-              {run[0].person.displayName}
-            </ProfileLink>
-            <ul className="flex flex-col gap-1.5">
-              {run.map((item, position) => {
-                const isNew = countNew([item.at], seen) > 0;
-                const delay = Math.min(index++, 8) * 50;
-                return (
-                  <li
-                    key={item.id}
-                    style={{ animationDelay: `${delay}ms` }}
-                    className={`relative rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 motion-safe:animate-[fork-pop_260ms_ease-out_both] ${
-                      position === 0 ? "rounded-tl-md" : ""
-                    } ${isNew ? "ring-2 ring-accent/50" : "ring-black/5"}`}
+          <ul className="flex flex-col gap-2">
+            {run.map((item) => {
+              const isNew = countNew([item.at], seen) > 0;
+              const went = item.status === "saved";
+              const delay = Math.min(index++, 8) * 50;
+              return (
+                <li
+                  key={item.id}
+                  style={{ animationDelay: `${delay}ms` }}
+                  className={`flex gap-3 rounded-2xl bg-white p-3 shadow-[0_1px_3px_rgb(0_0_0/0.06),0_6px_16px_-8px_rgb(124_45_18/0.12)] ring-1 motion-safe:animate-[fork-pop_260ms_ease-out_both] ${
+                    isNew ? "ring-2 ring-accent/50" : "ring-black/5"
+                  }`}
+                >
+                  {/* The kind of place on a tile tinted by the list it is on. */}
+                  <span
+                    aria-hidden="true"
+                    className={`flex size-12 shrink-0 items-center justify-center rounded-xl text-2xl ${
+                      went ? "bg-gradient-to-br from-orange-100 to-amber-50" : "bg-gradient-to-br from-violet-100 to-fuchsia-50"
+                    }`}
                   >
+                    {kindEmoji(item.place.kind)}
+                  </span>
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">
-                        <span aria-hidden="true">{kindEmoji(item.place.kind)} </span>
-                        {item.place.name}
-                      </span>
+                      <span className="min-w-0 flex-1 truncate text-base leading-tight font-bold">{item.place.name}</span>
                       {isNew && (
                         <span className="shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-white motion-safe:animate-[badge-pop_350ms_ease-out_both]">
                           Novo
@@ -458,37 +500,48 @@ function FeedTab({ items, seen, hasFriends, onFindFriends, myLists, onSaved }: F
                       )}
                       <FeedSave place={item.place} mine={myLists[item.place.id]} onSaved={(status) => onSaved(item.place.id, status)} />
                     </div>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-neutral-500">
-                      <span className={item.status === "saved" ? "font-semibold text-accent" : "font-semibold text-violet-600"}>
-                        {item.status === "saved" ? "⭐ Já foi" : "🤤 Quer ir"}
+                    <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
+                      <span
+                        className={`rounded-full px-2 py-0.5 font-semibold ${went ? "bg-orange-50 text-accent" : "bg-violet-50 text-violet-700"}`}
+                      >
+                        {went ? "⭐ Já foi" : "🤤 Quer ir"}
                       </span>
-                      {item.status === "saved" && item.rating !== null && (
-                        <span style={{ backgroundColor: ratingColor(item.rating) }} className="rounded-full px-1.5 py-px text-[11px] font-bold text-white">
+                      {went && item.rating !== null && (
+                        <span
+                          style={{ backgroundColor: ratingColor(item.rating) }}
+                          className="rounded-full px-2 py-0.5 text-xs font-extrabold text-white tabular-nums shadow-sm"
+                        >
                           {item.rating}/10
                         </span>
                       )}
-                      <span aria-hidden="true">·</span>
-                      <time dateTime={item.at}>{timeAgo(item.at)}</time>
+                      <time dateTime={item.at} className="ml-0.5">
+                        {timeAgo(item.at)}
+                      </time>
                     </p>
                     {item.notes && (
-                      <p className="mt-1.5 line-clamp-3 rounded-lg bg-neutral-50 px-2.5 py-1.5 text-[13px] whitespace-pre-line text-neutral-700">
+                      <p
+                        className={`mt-2 line-clamp-3 border-l-2 pl-2.5 text-[13px] leading-snug whitespace-pre-line text-neutral-700 ${
+                          went ? "border-orange-300" : "border-violet-300"
+                        }`}
+                      >
                         {item.notes}
                       </p>
                     )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </li>
       ))}
     </ul>
   );
 }
 
-function Avatar({ person }: { person: Person }) {
+
+function Avatar({ person, className = "size-9" }: { person: Person; className?: string }) {
   return (
-    <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-semibold text-white">
+    <span className={`flex ${className} shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-semibold text-white`}>
       {person.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- signed Supabase URL
         <img src={person.avatarUrl} alt="" className="size-full object-cover" />
