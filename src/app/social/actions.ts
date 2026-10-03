@@ -197,26 +197,27 @@ export async function loadFeed(): Promise<FeedItem[]> {
   });
 }
 
-export type SocialPulse = { requests: number; invites: number; feedTimes: string[] };
+export type SocialPulse = { requests: number; invites: number; feedTimes: string[]; hasFriends: boolean; hasGroups: boolean };
 
 // For the map's social button: friend requests and group invites received, and when friends last added to their
 // lists (newest first). The client compares those times with when the Feed was last seen on this device.
+// hasFriends / hasGroups (a group I'm a member of) pick the tab the button opens.
 export async function loadSocialPulse(): Promise<SocialPulse> {
   const session = await signedIn();
-  if (!session) return { requests: 0, invites: 0, feedTimes: [] };
+  if (!session) return { requests: 0, invites: 0, feedTimes: [], hasFriends: false, hasGroups: false };
   const { supabase, me } = session;
-  const [map, { count }] = await Promise.all([
+  const memberships = (status: "invited" | "member") =>
+    supabase.from("group_members").select("group_id", { count: "exact", head: true }).eq("user_id", me).eq("status", status);
+  const [map, { count }, { count: groups }] = await Promise.all([
     relations(supabase, me),
-    supabase
-      .from("group_members")
-      .select("group_id", { count: "exact", head: true })
-      .eq("user_id", me)
-      .eq("status", "invited"),
+    memberships("invited"),
+    memberships("member"),
   ]);
   const requests = [...map.values()].filter((relation) => relation === "received").length;
   const invites = count ?? 0;
+  const hasGroups = (groups ?? 0) > 0;
   const friendIds = [...map].filter(([, relation]) => relation === "friends").map(([id]) => id);
-  if (friendIds.length === 0) return { requests, invites, feedTimes: [] };
+  if (friendIds.length === 0) return { requests, invites, feedTimes: [], hasFriends: false, hasGroups };
   const { data } = await supabase
     .from("entries")
     .select("updated_at")
@@ -224,7 +225,7 @@ export async function loadSocialPulse(): Promise<SocialPulse> {
     .in("status", [...LIST_STATUSES])
     .order("updated_at", { ascending: false })
     .limit(FEED_LIMIT);
-  return { requests, invites, feedTimes: (data ?? []).map((row) => row.updated_at as string) };
+  return { requests, invites, feedTimes: (data ?? []).map((row) => row.updated_at as string), hasFriends: true, hasGroups };
 }
 
 export type NavData = SocialPulse & { username: string | null; avatarUrl: string | null };

@@ -11,11 +11,24 @@ type Props = {
   invites: number;
   // When friends last added to their lists, newest first.
   feedTimes: string[];
+  hasFriends: boolean;
+  // Member of at least one group.
+  hasGroups: boolean;
 };
+
+// Where the button lands: requests are answered on Procurar, group invites on Grupos. Then no friends yet →
+// Procurar (find some), a group → Grupos, otherwise the Feed (the default tab).
+function socialHref({ requests, invites, hasFriends, hasGroups }: Omit<Props, "feedTimes">): string {
+  if (requests > 0) return "/social?tab=procurar";
+  if (invites > 0) return "/social?tab=grupos";
+  if (!hasFriends) return "/social?tab=procurar";
+  if (hasGroups) return "/social?tab=grupos";
+  return "/social";
+}
 
 // Floating social button (right side, above the fork menu): opens Mordomia Social (/social).
 // The badge counts friend requests, group invites and feed activity not seen on this device; while there is any, the icon rings.
-export function FriendsButton({ requests, invites, feedTimes }: Props) {
+export function FriendsButton({ requests, invites, feedTimes, hasFriends, hasGroups }: Props) {
   const seen = useSyncExternalStore(subscribeNothing, readFeedSeen, () => null);
   const newFeed = countNew(feedTimes, seen);
   const total = requests + invites + newFeed;
@@ -32,8 +45,7 @@ export function FriendsButton({ requests, invites, feedTimes }: Props) {
 
   return (
     <Link
-      // Requests are answered on Procurar, group invites on Grupos; otherwise the Feed (the default tab).
-      href={requests > 0 ? "/social?tab=procurar" : invites > 0 ? "/social?tab=grupos" : "/social"}
+      href={socialHref({ requests, invites, hasFriends, hasGroups })}
       aria-label={label}
       className={`relative flex size-12 items-center justify-center rounded-full bg-white shadow-lg transition active:scale-95 ${
         total > 0 ? "text-accent" : "text-foreground"

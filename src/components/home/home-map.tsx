@@ -376,7 +376,7 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces,
           className="absolute right-[calc(env(safe-area-inset-right)+1rem)] bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-20 flex flex-col items-end gap-3"
         >
           {!fabOpen && (
-            <FriendsButton requests={socialPulse.requests} invites={socialPulse.invites} feedTimes={socialPulse.feedTimes} />
+            <FriendsButton {...socialPulse} />
           )}
           <ListFab
             open={fabOpen}
