@@ -6,7 +6,8 @@
 > mordomo, date poll, attendance, location, realtime, rankings and the Connoisseur badge — grade colours, and since
 > 2026-10-02: profiles and friends page, app-wide bottom bar, loading skeletons, animated splash, levels to 300,
 > saving from the Feed, **Preço certo**, closing events, past events and the demo-video scripts; see §11.
-> 000 gaps 1 and 3 are closed by `20261001000000_friends_feed.sql`; gap 2 and the minor ones remain, see §6)
+> Later on 2026-10-03: **sharing an event** (short `/e/<code>` links, login returns to the asked page),
+> **001 security hardening** built (all 000 gaps closed, §6–7), and the redesigned login, Feed and people search.)
 
 ## 1. Product in one paragraph
 A friends-only social app. Each user keeps restaurants on two lists — **"Minha lista"** (`saved`: places they have
@@ -40,7 +41,9 @@ Google Maps (`@vis.gl/react-google-maps`, Maps key, Map ID) is gone; 003 replace
 ```
 src/
   proxy.ts                    # Next 16 "middleware": refreshes session, redirects signed-out users to /login
+                              #   (?next=<asked path>); the matcher skips only exact static/PWA paths (§7)
   lib/supabase/               # client.ts (browser), server.ts (per request), proxy.ts (updateSession)
+  lib/auth/public-paths.ts    # isPublicPath(): exactly /login, /auth and /auth/… are reachable signed out
   app/
     layout.tsx                # root layout, metadata (pt-PT tagline), <html lang="pt-PT">, viewport (light only),
                               #   renders <AppNav> (the bottom bar) on every screen
@@ -65,18 +68,23 @@ src/
       pessoa/[username]/page.tsx              # someone's profile → <ProfileView> (mine redirects to /account)
       amigos/page.tsx                         # "Os meus amigos" → <FriendsPage>
       grupos/[id]/page.tsx                    # group page (tabs ?eventos=passados) → <GroupPage>
-      grupos/[id]/eventos/[eventId]/page.tsx  # event page → <EventPage> (closed events → <PastEvent>)
+      grupos/[id]/eventos/[eventId]/page.tsx  # event page → <EventPage> (closed events → <PastEvent>);
+                                              #   not a member / no such event → <PrivateEvent>
       grupos/[id]/detalhes/page.tsx           # group details (rankings) → <GroupDetails>
       **/loading.tsx          # a <PageSkeleton> per route (feed / list / profile variants)
-    login/page.tsx            # sign in / sign up (tabs "Entrar" / "Registar", useActionState)
-    login/actions.ts          # login, signup, logout; maps Supabase auth error codes to Portuguese
+    login/page.tsx            # sign in / sign up: splash gradient + PinMark, card form, pill tabs "Entrar" /
+                              #   "Registar" (useActionState); passes ?next= on as a hidden field
+    login/actions.ts          # login (→ safe ?next= path or /), signup (username + password ≥ 8 checked on the
+                              #   server), logout; maps Supabase auth error codes to Portuguese
+    e/[code]/page.tsx         # shared event link: member → redirect to the event; anyone else → <PrivateEvent>
     auth/confirm/route.ts     # email confirmation link target (verifyOtp / code exchange)
     api/search/route.ts       # GET: restaurant search (user-added + Photon), optional country
     api/nav/route.ts          # GET: bottom-bar data (avatar, badge counts); a GET so it never queues server actions
     api/places/route.ts       # GET: Google Places autocomplete proxy (legacy, unused by the UI)
   components/
     spinner.tsx               # shared UI
-    splash.tsx                # map loading screen: hopping pin, location ping rings, loading dots (CSS only)
+    splash.tsx                # map loading screen: hopping pin, location ping rings, loading dots (CSS only);
+                              #   PinMark = the brand pin (also on /login)
     page-skeleton.tsx         # PageSkeleton({ variant: "profile" | "list" | "feed" }) for loading.tsx files
     app-nav.tsx               # bottom bar (Mapa, Procurar, Grupos, Feed, Perfil) on every screen except the map and
                               #   login; fetches /api/nav after the screen settles; showNavOnMap()/onNavMap() let a
@@ -104,7 +112,10 @@ src/
       social-view.tsx         #   /social: tabs Procurar / Grupos / Feed (the bar itself is AppNav)
       groups-tab.tsx          #   group list + invites, GroupSheet (members, invite, edit, leave/delete) and shared
                               #   pieces: Sheet (portaled), GroupPhoto, PersonAvatar, CrownedAvatar, ConnoisseurPill
-      feed-save.tsx           #   corner ＋ on a friend's Feed item: save it to Quero ir / Já fui (or ✓ when listed)
+      feed-save.tsx           #   corner ＋ on a friend's Feed item: save it to Quero ir / Já fui (or ✓ when listed);
+                              #   the menu is portaled and opens upward when the bottom bar would cover it
+      event-share.tsx         #   "Partilhar evento": share sheet (navigator.share) or WhatsApp Web, short link
+      private-event.tsx       #   "Este evento é privado" (shared link opened by a non-member)
       profile-view.tsx        #   someone's profile: card, friend button, level, their lists and friends (friends only)
       profile-link.tsx        #   ProfileLink / profileHref: tap a person anywhere to open their profile
       friends-page.tsx        #   "Os meus amigos" (photo, name, level)
@@ -120,7 +131,7 @@ src/
       event-location.tsx      #   restaurant search for events, location card, suggestions
       group-details.tsx       #   stats and the three rankings
   lib/                        # pure logic, each with colocated *.test.ts
-    validation/username.ts
+    validation/username.ts, validation/password.ts (MIN_PASSWORD_LENGTH = 8, isValidPassword)
     data-key.ts               # dataKey(): short hash of data, used as a React key so views rebuild on fresh props
     map/                      # config.ts (Porto, zooms, style URL, toMapLibreZoom), location.ts, phase.ts,
                               #   restaurants.ts (food classes, labels, emojis, kinds helpers, custom place ids),
@@ -231,7 +242,8 @@ Migrations (in order): `20260929000000_init.sql`, `20260930000000_osm_restaurant
 `20260930000600_restaurant_kinds.sql`, `20261001000000_friends_feed.sql`, `20261001000100_groups.sql`,
 `20261001000200_group_events.sql`, `20261001000300_event_mordomo.sql`, `20261001000400_event_date_poll.sql`,
 `20261001000500_event_attendance.sql`, `20261001000600_event_realtime.sql`, `20261001000700_event_location.sql`,
-`20261002000000_friend_count.sql`, `20261002000100_price_guess.sql`, `20261003000000_event_close.sql`.
+`20261002000000_friend_count.sql`, `20261002000100_price_guess.sql`, `20261003000000_event_close.sql`,
+`20261003000100_event_share_code.sql`, `20261003000200_entry_photos_path_binding.sql`.
 
 | Table | Key columns | Notes |
 |---|---|---|
@@ -242,7 +254,7 @@ Migrations (in order): `20260929000000_init.sql`, `20260930000000_osm_restaurant
 | `friendships` | `requester_id`, `addressee_id`, `status` (`pending`/`accepted`) | one row per pair (unique on least/greatest). Trigger `friendships_guard_update`: ids and `created_at` frozen, status only `pending → accepted` |
 | `groups` | `id`, `owner_id` (default `auth.uid()`), `name` (1–40), `description` (≤ 300), `photo_path` (`{owner_id}/…`) | trigger `groups_add_owner` inserts the owner as a `member` |
 | `group_members` | (`group_id`, `user_id`), `status` (`invited`/`member`), `invited_by` | an invite is a row with `invited`; accepting sets `member`. Guards: only `invited → member` by the invitee; the owner can't leave |
-| `group_events` | `id`, `group_id`, `title` (1–60), `created_by`, `mordomo_id`, `event_date` (date, no time), `location_restaurant_id`, `price_opened_at`, `price_closed_at`, `price_guessed_at`, `closed_at` | no update grant: mordomo, date, location, Preço certo state and closing change only through RPCs. `price_guessed_at` is touched by every guess so live pages refresh (others' guesses are hidden from them). Closed (`closed_at` set) = frozen, see below |
+| `group_events` | `id`, `group_id`, `title` (1–60), `created_by`, `mordomo_id`, `event_date` (date, no time), `location_restaurant_id`, `price_opened_at`, `price_closed_at`, `price_guessed_at`, `closed_at`, `share_code` (6 chars, unique, default `new_event_share_code()`) | no update grant: mordomo, date, location, Preço certo state and closing change only through RPCs. `price_guessed_at` is touched by every guess so live pages refresh (others' guesses are hidden from them). Closed (`closed_at` set) = frozen, see below |
 | `group_event_date_options` | `id`, `event_id`, `day` | the poll's days (1–31, from yesterday on); unique (`event_id`, `day`); created by RPC |
 | `group_event_date_votes` | (`option_id`, `user_id`) | members vote / unvote directly while the poll is open (`date_option_open`) |
 | `group_event_attendance` | (`event_id`, `user_id`), `going`, `rejoin_requested_at` | explicit answers only (voters of the chosen day and the mordomo are going implicitly). Written only by RPCs |
@@ -272,6 +284,8 @@ jpeg/png/webp; path `{user_id}/{timestamp}.jpg`; shown through signed URLs creat
 
 Helpers (all `security definer`, `search_path = ''`):
 - `are_friends(a, b)` → accepted friendship; answers only when the caller is `a` or `b`; not executable by anon.
+- `new_event_share_code()`: a random 6-character code (no look-alike characters) not used by any event; `security
+  definer` so it sees every event's code, not only those RLS shows the creator. The code is not a secret.
 - `in_group(gid, invited_ok)`, `owns_group(gid)`, `in_event_group(eid)`, `date_option_open(oid)`,
   `is_going_to_event(eid)` — used by policies.
 - `friend_count(uid)` (any signed-in user; the number only) and `friends_of(uid)` (rows only for the person and their
@@ -290,14 +304,11 @@ Realtime publication `supabase_realtime`: `group_events`, `group_event_date_opti
 
 ## 6. Privacy model (RLS, all tables enabled)
 
-> **Security gaps from the 000 review.** Gaps **1** (forged friendship on accept) and **3** (`are_friends` callable
-> by anon / for any pair) were **closed by `20261001000000_friends_feed.sql`** before friends could read each other's
-> lists. Still open until 001 (details in `specs/000-foundation/README.md` → "Known gaps"):
-> 2. **[major]** `entry_photos: insert own` (init.sql:184-188, with the storage read policy at 222-229) does not require
->    `storage_path` to start with `{auth.uid()}/{entry_id}/` → can expose another user's orphaned/pending files or
->    squat paths (no photo UI exists yet).
-> - The minor 000 gaps 4–7 (§7, §10). The Supabase security advisor also flags `handle_new_user` as executable via
->   RPC and leaked-password protection as disabled.
+> **Security gaps from the 000 review: all closed.** Gaps 1 (forged friendship on accept) and 3 (`are_friends`
+> callable by anon / for any pair) by `20261001000000_friends_feed.sql`; gap 2 (photo path not bound to owner and
+> entry) by `20261003000200_entry_photos_path_binding.sql`; the minor gaps 4–7 by 001 (§7, §10). Still open:
+> - The Supabase security advisor flags `handle_new_user` as executable via RPC and leaked-password protection as
+>   disabled.
 > - **Realtime DELETE events** carry the deleted row's primary key to every subscriber of the table regardless of RLS;
 >   for `group_event_date_votes` that is (`option_id`, `user_id`). Accepted by the user.
 
@@ -306,7 +317,7 @@ Realtime publication `supabase_realtime`: `group_events`, `group_event_date_opti
 | profiles | any signed-in user (incl. `bio`, `avatar_path`) | update own; **only** `display_name`, `bio`, `avatar_path` (column grants) |
 | restaurants | any signed-in user | insert (created_by = self); no update/delete — nobody can change or remove a shared restaurant |
 | entries | own; or `are_friends(me, owner)` (**all statuses**: friends see Minha lista and Quero ir!, with rating and notes) | insert/update/delete own |
-| entry_photos | if the parent entry is readable | insert own (on own entry; path prefix **not** checked, gap 2) / delete own |
+| entry_photos | if the parent entry is readable | insert own: on own entry with `storage_path` exactly `{auth.uid()}/{entry_id}/{filename}` (no further `/`) / delete own |
 | friendships | rows where I'm requester or addressee | insert as requester with `pending`; addressee updates to `accepted` (ids frozen by trigger); either side deletes |
 | groups | members and invitees | create own; owner updates / deletes |
 | group_members | members and invitees of the group | a member invites an **accepted friend**; the invitee accepts; delete = leave (not the owner), owner removes, or the inviter cancels an invite |
@@ -327,6 +338,10 @@ readable by their **accepted friends** and nobody else. Strangers see nothing.
 and member list so they can decide). Being in a group never exposes anyone's lists; that still needs a friendship.
 Only friends can be invited.
 
+**Invariant (shared event links):** `/e/<code>` and the full event URL open only for the group's members (RLS on
+`group_events`); signed-out visitors go to `/login` first, and anyone else gets the same "Este evento é privado"
+page whether or not the event exists. The shared message itself (title, date, link) is visible in the chat.
+
 **Invariant (Preço certo):** before the reveal nobody sees another person's guess (RLS: own row only); members only
 see *who* guessed (`event_price_guessers`). The bill total stays in the mordomo's browser until they reveal it.
 
@@ -343,11 +358,18 @@ Sign up (email, password, username) → `signup` server action validates the use
 Supabase sends a confirmation email → link hits `/auth/confirm` → session cookie set → `/`.
 Sign out: the floating avatar on the map opens **`/account`**, whose "Terminar sessão" button submits the `logout`
 server action (there is no avatar dropdown any more). `/login` has "Entrar" / "Registar" tabs. `src/proxy.ts` runs on
-every non-static request: refreshes the session via `getClaims()` and redirects to `/login` when signed out (public
-paths: prefix match on `/login`, `/auth`).
-- Password ≥ 8 is currently enforced **only in the browser** (`minLength`); the server action does not check it and
-  `supabase/config.toml` has `minimum_password_length = 6` (000 gap 4, fixed in 001).
-- The proxy matcher excludes any path starting with `icon`/`apple-icon` (000 gap 6, fixed in 001: exact exclusions).
+every non-static request: refreshes the session via `getClaims()` and redirects to `/login` when signed out. Public
+paths are exact (`isPublicPath`: `/login`, `/auth`, `/auth/…`), so `/login-help` or `/authors` need a session.
+- **Back to the asked page:** the redirect carries `?next=<path + query>` (not for `/` or `/api`); the login form
+  sends it as a hidden field and `login` redirects there only if it is a path on this site (starts with `/`, not `//`
+  or `/\`), else to `/`. Sign-up confirmation still lands on `/`.
+- **Password ≥ 8** in three places: the input's `minLength`, the `signup` action (`isValidPassword`, before any
+  Supabase call: "A palavra-passe tem de ter pelo menos 8 caracteres.") and `supabase/config.toml`
+  (`minimum_password_length = 8`, local). **Production:** the same setting must be set in the dashboard
+  (Authentication → Providers → Email); not done as of 2026-10-03.
+- **Proxy matcher** skips only `_next/static`, `_next/image`, exactly `/favicon.ico` and `/manifest.webmanifest`, and
+  image / `.mjs` files (MapLibre worker). A new icon route (`app/icon.*`) must be added there as an exact entry.
+- After a failed attempt the email and username stay (controlled inputs; React resets a form after its action).
 - Local Supabase has email confirmations disabled; **production has them enabled** (Site URL and redirect URLs must
   point at the Vercel domain, §12).
 
@@ -381,7 +403,8 @@ paths: prefix match on `/login`, `/auth`).
 
 ## 9. Environment variables (`.env.example`)
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `GOOGLE_PLACES_API_KEY` (server, optional now:
-only the legacy `/api/places` needs it). No map keys.
+only the legacy `/api/places` needs it), `NEXT_PUBLIC_SITE_URL` (optional: base of shared event links; `.env.local`
+sets it to production so links shared while developing point there; unset → the current site). No map keys.
 
 Tests use `.env.test` (git-ignored; template `.env.test.example`, values from `npx supabase status`):
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (e2e helpers only,
@@ -423,7 +446,9 @@ Tests run against **local Supabase** (`npx supabase start`, Docker Desktop runni
   transactions, and the flows with throwaway Playwright scripts against local Supabase (not committed).
 - **Known coverage gaps:** e2e and pgTAP were not run for the post-002 work (no Docker during that session); there
   are no pgTAP tests yet for the new constraints/grants (username lock, `avatars` policies, `kinds` check) — they
-  were verified by hand on the production DB. 000 gaps 5 and 1–3 tests come with 001; 002 gaps: no e2e for the
+  were verified by hand on the production DB. 001 was built in saving mode **without** its planned pgTAP / Vitest /
+  Playwright tests (the fixes were checked by hand: role-switched SQL, curl against the proxy, a Playwright sign-up);
+  002 gaps: no e2e for the
   home map, no automated test for the 10 s cap.
 - **Demo videos** (`scripts/demo-video/`, see its README): `setup.sh` creates four demo friends with illustrated
   avatars and seeds a demo group; `record.sh` records a scripted 60 s tour (headed Chromium, CDP screencast frames)
@@ -432,17 +457,24 @@ Tests run against **local Supabase** (`npx supabase start`, Docker Desktop runni
   `@testing-library/dom`, `supabase` CLI.
 - **Git-ignored:** `.env*` except the two templates, `supabase/.temp`, `supabase/.branches`, `public/maplibre/`,
   `test-results/`, `playwright-report/`, `blob-report/`, `playwright/.cache/`, `coverage/`.
-  `.claude/settings.local.json` is currently tracked and should not be (000 gap 7, fixed in 001).
+  `/.claude/settings.local.json` (untracked by 001).
 - **Dev Mac:** Node in `~/.local/node/bin`, Docker CLI in `~/.docker/bin`; both must be on `PATH` for
   `npm run check` / `npx supabase …`: `export PATH="$HOME/.local/node/bin:$HOME/.docker/bin:$PATH"`.
 
 ## 11. Features
 See `specs/README.md` for status. Built so far:
 - **000 Foundation** (`specs/000-foundation/README.md`): scaffold, auth, schema + RLS, Places proxy, PWA manifest,
-  test tooling. Closed with 7 known gaps (1 blocker, 1 major, 5 minor) scheduled for **001 security hardening**.
+  test tooling. Closed with 7 known gaps (1 blocker, 1 major, 5 minor), all closed since (see 001).
+- **001 Security hardening** (`specs/001-security-hardening/`, built 2026-10-03 in saving mode — no new tests, spec
+  status not updated): tasks 1 and 3 had already shipped with the friends feed; built now: photo path binding,
+  password ≥ 8 on the server and in `config.toml`, exact public paths and proxy exclusions, untracked local Claude
+  settings (§6, §7). The production dashboard password setting is still to do.
 - **002 Home map, light theme, login polish** (`specs/002-home-map/README.md`): always-light theme + accent token,
   full-screen geolocated home (Porto fallback + notice, recenter, blue dot, splash, map-error state), login tabs,
   labels, tagline, password toggle.
+- **Login screen (redesign, 2026-10-03):** the splash's orange gradient with soft glows, the brand pin (`PinMark`),
+  a big "Mordomia" wordmark and tagline, then a white card: pill switch Entrar / Registar, soft fields with an accent
+  focus ring, a bold button with a spinner while pending, errors / messages in tinted boxes.
 
 Built **without a spec** (the user chose to skip the spec flow for these; there are no `specs/NNN` folders or
 READMEs — this section is their only documentation):
@@ -496,11 +528,16 @@ READMEs — this section is their only documentation):
 - **Mordomia Social (`/social`):** opened from the floating social button on the map (badge = friend requests +
   group invites + feed items not seen on this device; the icon rings while there is any). Bottom bar:
   **Mapa** · **Procurar** · **Grupos** · **Feed** · **Perfil**; the tab is in `?tab=`.
-  - **Procurar:** search people by name or @username, send / accept / cancel requests, list and remove friends.
+  - **Header** (all tabs): warm orange gradient, frosted while scrolling, "Mordomia Social" and a friends-count pill.
+  - **Procurar:** search people by name or @username (from 2 characters, 300 ms debounce), send / accept / cancel
+    requests, list and remove friends. The matched part of a name / @username is highlighted (case- and
+    accent-insensitive, `Highlight`), skeleton rows while searching, a 🔎 empty state with a hint. Not built (options
+    offered and declined on 2026-10-03): recent searches, mutual friends, "people you may know".
   - **Feed:** friends' latest additions to either list (50 newest), "Novo" on items newer than the last visit
     (`localStorage` `mordomia.feedSeenAt`, marked when leaving the Feed). Consecutive items from the same person are
-    grouped like a conversation (one avatar and name, one bubble per restaurant). **Save from the Feed:** each bubble
-    has a small round ＋ (top-right) that opens "Guardar em: 🤤 Quero ir / ⭐ Já fui" (`addToList`); once listed it
+    grouped under one header (avatar with a white ring + bold name). Each card: the place's type emoji on a tile
+    tinted by the list (orange "Já foi", violet "Quer ir"), bold name, status chip, rating badge, time, and notes as
+    a quote with a coloured side line. **Save from the Feed:** each card has a small round ＋ (top-right) that opens "Guardar em: 🤤 Quero ir / ⭐ Já fui" (`addToList`); once listed it
     shows ✓🤤 / ✓⭐, and "Quero ir" can still move to "Já fui". The page loads my own list to know what is listed.
   - Pull-to-refresh on every social page.
 - **Profiles** (`/social/pessoa/<username>`, opened by tapping a person anywhere via `ProfileLink`; mine redirects to
@@ -544,21 +581,26 @@ READMEs — this section is their only documentation):
      sheet, then a **thank-you modal** for the mordomo ("Obrigado, …! Organizaste um evento incrível…", confetti,
      "De nada 😎"). The event is frozen (§5) and its page becomes the **past-event summary**: date, 🎩 mordomo,
      📍 where, 👑 Preço certo winner with the price, 👥 who went.
+- **Sharing an event** (share icon at the top right of every event page, open or past): the phone's share sheet
+  (`navigator.share`; WhatsApp, Mensagens…) or, without one, WhatsApp Web (`wa.me`), with "🍽️ <title> — <date>" and
+  the short link `<NEXT_PUBLIC_SITE_URL>/e/<share_code>`. Opening it: signed out → `/login?next=/e/<code>` → back;
+  member → the event page; anyone else → `<PrivateEvent>` (§6). WhatsApp's link preview shows the login page.
 - **Group details** (`/social/grupos/[id]/detalhes`, members only): number of dated events and of all events, and three
   rankings over current members — **most mordomias** (dated events they are going to, future ones included),
   **most times mordomo**, and **💶 Preço certo wins** (revealed games) — with medals, shared places on ties and the
   Connoisseur crowned.
 
-Upcoming: **001 security hardening** (specced; gaps 1 and 3 already closed), entry photos.
+Upcoming: entry photos; set the production minimum password length (§7); tests for 001 when saving mode ends.
 
 ## 12. Production
-Live since 2026-09-30, used by the owner only until 001 lands.
+Live since 2026-09-30. 001 security hardening landed on 2026-10-03.
 - **App:** https://mordomia-two.vercel.app — Vercel project `mordomia` (`prj_xao8RzBYZhcfxAgXiyWRxyQfaocd`, personal
   Hobby account), linked to GitHub `jpamcarvalho/mordomia`: **every push to `main` deploys to production**. Functions
   run in `cdg1` (Paris), next to the database. Vercel env: `NEXT_PUBLIC_SUPABASE_URL`,
-  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (`GOOGLE_PLACES_API_KEY` not set).
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (`GOOGLE_PLACES_API_KEY` and `NEXT_PUBLIC_SITE_URL` not set; links use the
+  current site, which is production).
 - **Database:** Supabase project `mordomia` (`legpqwvizknhuwuhrrlo`, `eu-west-3` Paris, Free plan). All migrations up
-  to `20261003000000_event_close` are applied (2026-10-03). **Migrations are not applied by the deploy**: apply every new migration to
+  to `20261003000200_entry_photos_path_binding` are applied (2026-10-03). **Migrations are not applied by the deploy**: apply every new migration to
   production (Supabase MCP `apply_migration` or `supabase db push`) before or together with pushing code that needs it.
 - **Auth settings (dashboard):** email confirmation on; Site URL `https://mordomia-two.vercel.app`, redirect URL
   `https://mordomia-two.vercel.app/**`. The built-in email sender is rate-limited (a few emails per hour).
