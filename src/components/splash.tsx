@@ -14,22 +14,7 @@ export function Splash() {
         <span className="absolute bottom-1 h-8 w-20 rounded-[50%] border-2 border-accent/40 motion-safe:animate-[splash-ping_2s_ease-out_1s_infinite]" />
         {/* Shadow shrinks as the pin goes up. */}
         <span className="absolute bottom-3 h-2.5 w-10 rounded-[50%] bg-orange-900/15 motion-safe:animate-[splash-shadow_1.4s_ease-in-out_infinite]" />
-        <svg
-          viewBox="0 0 48 64"
-          className="relative mb-4 h-20 w-16 drop-shadow-md motion-safe:animate-[splash-hop_1.4s_ease-in-out_infinite]"
-        >
-          <path d="M24 2C12.4 2 3 11.2 3 22.6 3 38 24 62 24 62s21-24 21-39.4C45 11.2 35.6 2 24 2Z" className="fill-accent" />
-          <circle cx="24" cy="22.5" r="12" fill="white" />
-          {/* Fork and knife. */}
-          <path
-            d="M20 15.5v6.5a2 2 0 0 0 2 2v6M18 15.5v4.5M22 15.5v4.5M28.5 30V15.5c-2 1-3 3.2-3 5.5v3h3"
-            fill="none"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="stroke-accent"
-          />
-        </svg>
+        <PinMark className="relative mb-4 h-20 w-16 drop-shadow-md motion-safe:animate-[splash-hop_1.4s_ease-in-out_infinite]" />
       </div>
 
       <p className="mt-4 text-3xl font-bold tracking-tight motion-safe:animate-[sheet-up_500ms_ease-out_both]">
@@ -48,5 +33,24 @@ export function Splash() {
         </span>
       </p>
     </div>
+  );
+}
+
+// The brand mark: an orange map pin with a knife and fork. Size via className.
+export function PinMark({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 48 64" className={className}>
+      <path d="M24 2C12.4 2 3 11.2 3 22.6 3 38 24 62 24 62s21-24 21-39.4C45 11.2 35.6 2 24 2Z" className="fill-accent" />
+      <circle cx="24" cy="22.5" r="12" fill="white" />
+      {/* Fork and knife. */}
+      <path
+        d="M20 15.5v6.5a2 2 0 0 0 2 2v6M18 15.5v4.5M22 15.5v4.5M28.5 30V15.5c-2 1-3 3.2-3 5.5v3h3"
+        fill="none"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="stroke-accent"
+      />
+    </svg>
   );
 }
