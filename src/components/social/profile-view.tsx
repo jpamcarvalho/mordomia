@@ -1,14 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { acceptFriendRequest, removeFriendship, sendFriendRequest, type Relation } from "@/app/social/actions";
-import { ENTER, delay } from "@/components/account/account-view";
-import { ratingColor } from "@/lib/list/rating-color";
-import type { ListItem, ListStatus } from "@/lib/list/types";
-import { mapHref } from "@/lib/map/place-link";
-import { kindEmoji, kindsLabel, placeKinds } from "@/lib/map/restaurants";
+import { ENTER, delay } from "@/components/enter";
+import { ProfileLists } from "@/components/profile-lists";
+import type { ListItem } from "@/lib/list/types";
 import { levelFor } from "@/lib/profile/account";
 import { avatarInitial } from "@/lib/profile/avatar";
 import type { Person } from "@/lib/social/people";
@@ -93,7 +90,15 @@ export function ProfileView({ person, bio, memberSince, friendCount, relation, l
         </section>
 
         {list ? (
-          <ProfileLists items={list} firstName={firstName} style={delay(160)} />
+          <ProfileLists
+            items={list}
+            title={`📍 Os restaurantes de ${firstName}`}
+            tabs={{
+              saved: { label: "⭐ Já foi", empty: `${firstName} ainda não adicionou sítios onde foi.` },
+              want: { label: "🤤 Quer ir", empty: `${firstName} ainda não tem sítios onde quer ir.` },
+            }}
+            style={delay(160)}
+          />
         ) : (
           <section style={delay(160)} className={`flex flex-col items-center gap-1 rounded-3xl bg-white p-6 text-center shadow-sm ${ENTER}`}>
             <span aria-hidden="true" className="text-4xl">
@@ -162,81 +167,6 @@ function FriendCount({ count }: { count: number }) {
       <span className="font-bold tabular-nums">{count}</span>{" "}
       <span className="text-neutral-500">{count === 1 ? "amigo" : "amigos"}</span>
     </>
-  );
-}
-
-const LIST_TABS: { status: ListStatus; label: string; empty: (name: string) => string }[] = [
-  { status: "saved", label: "⭐ Já foi", empty: (name) => `${name} ainda não adicionou sítios onde foi.` },
-  { status: "want", label: "🤤 Quer ir", empty: (name) => `${name} ainda não tem sítios onde quer ir.` },
-];
-
-// A friend's two lists: tabs "Já foi" / "Quer ir"; each restaurant opens on the map.
-function ProfileLists({ items, firstName, style }: { items: ListItem[]; firstName: string; style: React.CSSProperties }) {
-  const [tab, onTab] = useState<ListStatus>("saved");
-  const shown = items.filter((item) => item.status === tab);
-  const current = LIST_TABS.find((entry) => entry.status === tab)!;
-
-  return (
-    <section style={style} className={`rounded-3xl bg-white p-5 shadow-sm ${ENTER}`}>
-      <h2 className="font-semibold">📍 Os restaurantes de {firstName}</h2>
-      <div role="tablist" className="mt-3 grid grid-cols-2 gap-1 rounded-full bg-neutral-100 p-1">
-        {LIST_TABS.map(({ status, label }) => {
-          const active = tab === status;
-          return (
-            <button
-              key={status}
-              role="tab"
-              type="button"
-              aria-selected={active}
-              onClick={() => onTab(status)}
-              className={`flex h-10 items-center justify-center gap-2 rounded-full text-sm font-semibold transition ${
-                active ? "bg-accent text-white shadow" : "text-neutral-600"
-              }`}
-            >
-              {label}
-              <span className={`min-w-5 rounded-full px-1.5 text-xs ${active ? "bg-white/25 text-white" : "bg-neutral-200 text-neutral-600"}`}>
-                {items.filter((item) => item.status === status).length}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {shown.length === 0 ? (
-        <p className="mt-4 rounded-2xl bg-neutral-50 px-4 py-3 text-sm text-neutral-500">{current.empty(firstName)}</p>
-      ) : (
-        <ul className="mt-3 flex flex-col gap-2">
-          {shown.map((item) => (
-            <li key={item.entryId}>
-              <Link
-                href={mapHref({ id: item.placeId, name: item.name, kind: item.kind ?? "restaurant", lat: item.lat, lng: item.lng })}
-                className="flex items-center gap-3 rounded-2xl bg-neutral-50 p-3 transition hover:bg-orange-50 active:scale-[0.98]"
-              >
-                <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-2xl">
-                  {kindEmoji(item.kind)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate font-semibold">{item.name}</span>
-                    {item.rating !== null && (
-                      <span style={{ backgroundColor: ratingColor(item.rating) }} className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold text-white">
-                        {item.rating}/10
-                      </span>
-                    )}
-                  </span>
-                  <span className="mt-0.5 flex items-center gap-1 text-sm text-neutral-500">
-                    {item.kind ? kindsLabel(placeKinds(item)) : "Restaurante"}
-                    <span aria-hidden="true">·</span>
-                    <span className="text-accent">Ver no mapa</span>
-                  </span>
-                  {item.notes && <span className="mt-1 line-clamp-2 text-sm whitespace-pre-line text-neutral-600">{item.notes}</span>}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
   );
 }
 

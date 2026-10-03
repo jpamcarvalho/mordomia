@@ -85,3 +85,10 @@ export function levelFor(went: number): Level {
   const index = LEVELS.findLastIndex((level) => went >= level.from);
   return { ...LEVELS[index], next: LEVELS[index + 1]?.from ?? null };
 }
+
+// "No Mordomia desde …": the month and year the account was created ("outubro de 2026").
+export function memberSinceLabel(createdAt: string | null): string | null {
+  return createdAt
+    ? new Intl.DateTimeFormat("pt-PT", { month: "long", year: "numeric" }).format(new Date(createdAt))
+    : null;
+}

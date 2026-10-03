@@ -106,7 +106,7 @@ export function AppNav() {
         : "feed"
       : pathname.startsWith("/social/grupos")
         ? "grupos"
-        : pathname === "/account"
+        : pathname.startsWith("/account")
           ? "perfil"
           : null;
 

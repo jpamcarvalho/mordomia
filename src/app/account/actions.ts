@@ -24,6 +24,7 @@ export async function saveBio(input: unknown): Promise<BioResult> {
 
   const { error } = await supabase.from("profiles").update({ bio: parsed.bio }).eq("id", userId);
   if (error) return { ok: false, error: "Não foi possível guardar. Tenta outra vez." };
+  revalidatePath("/account");
   return { ok: true, bio: parsed.bio };
 }
 
@@ -37,6 +38,7 @@ export async function saveDisplayName(input: unknown): Promise<NameResult> {
 
   const { error } = await supabase.from("profiles").update({ display_name: parsed.displayName }).eq("id", userId);
   if (error) return { ok: false, error: "Não foi possível guardar. Tenta outra vez." };
+  revalidatePath("/account");
   return { ok: true, displayName: parsed.displayName };
 }
 
@@ -54,7 +56,8 @@ export async function setAvatar(path: string | null): Promise<AvatarResult> {
   const old = before?.avatar_path as string | null | undefined;
   if (old && old !== path) await supabase.storage.from(AVATAR_BUCKET).remove([old]);
 
-  // The avatar button on the map shows the photo too.
+  // The account page and the avatar button on the map show the photo too.
   revalidatePath("/");
+  revalidatePath("/account");
   return { ok: true, url: await avatarUrl(supabase, path) };
 }
