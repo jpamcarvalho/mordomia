@@ -5,7 +5,13 @@ import { restaurantIdFor } from "@/lib/list/restaurant-id";
 import { parseDetails } from "@/lib/list/details";
 import { isListStatus, type ListItem, type ListStatus } from "@/lib/list/types";
 import { DUPLICATE_RADIUS_M, NAME_MAX, distanceMeters, parseNewRestaurant, type NewRestaurant } from "@/lib/list/new-restaurant";
-import { findGoogleMapsLink, isGoogleMapsUrl, parseGoogleMapsUrl, type LinkPlace } from "@/lib/search/google-link";
+import {
+  findGoogleMapsLink,
+  findInMapsSearch,
+  isGoogleMapsUrl,
+  parseGoogleMapsUrl,
+  type LinkPlace,
+} from "@/lib/search/google-link";
 import { PHOTON_URL, normalizeName } from "@/lib/search/photon";
 import { customPlaceId, isFoodClass, parseKinds, type FoodClass, type SelectedPlace } from "@/lib/map/restaurants";
 
@@ -143,12 +149,15 @@ const MAX_REDIRECTS = 5;
 const LINK_TIMEOUT_MS = 5000;
 
 // Reads the place behind a Google Maps link, following short-link redirects. Only Google Maps hosts are fetched,
-// and only their redirect headers are read (never a page body).
+// and only their redirect headers are read. A link without a position is looked up on Google Maps search.
 async function resolveGoogleLink(text: string): Promise<LinkPlace | null> {
   let url = findGoogleMapsLink(text);
   for (let hop = 0; url && hop <= MAX_REDIRECTS; hop++) {
     const place = parseGoogleMapsUrl(url);
-    if (place) return place;
+    if (place) {
+      if (!place.position && place.name) place.position = await lookUpOnGoogle(place);
+      return place;
+    }
     if (hop === MAX_REDIRECTS) break;
     try {
       const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(LINK_TIMEOUT_MS) });
@@ -161,6 +170,22 @@ async function resolveGoogleLink(text: string): Promise<LinkPlace | null> {
     }
   }
   return null;
+}
+
+// The exact spot of a place from a link that only has its name, address and ftid ("?q=Name, address&ftid=…"):
+// Google Maps search for that text, reading the place with the same ftid. Null when Google doesn't answer.
+async function lookUpOnGoogle(place: LinkPlace): Promise<{ lat: number; lng: number } | null> {
+  const q = [place.name, place.address].filter(Boolean).join(", ");
+  try {
+    const res = await fetch(`https://www.google.com/search?${new URLSearchParams({ tbm: "map", hl: "pt-PT", gl: "pt", q })}`, {
+      redirect: "error",
+      signal: AbortSignal.timeout(LINK_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    return findInMapsSearch(await res.text(), place.ftid);
+  } catch {
+    return null;
+  }
 }
 
 export type LinkResult = { ok: true; place: LinkPlace } | { ok: false; error: string };

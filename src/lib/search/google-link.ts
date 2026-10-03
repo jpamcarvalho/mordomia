@@ -1,12 +1,14 @@
 // Google Maps share links ("Não o encontras?" → paste the link): find one in pasted text and read the place from it.
 
-// position: the exact spot, when the link has one. Some Maps shares ("?q=Name, address&ftid=…") only carry the
-// name and address; then position is null, guess is a rough spot for the address and the user places the pin.
+// position: the exact spot. Some Maps shares ("?q=Name, address&ftid=…") only carry the name, address and Google's
+// place id (ftid); the server then looks the place up on Google Maps (findInMapsSearch). Only when that fails is
+// position null: guess is a rough spot for the address and the user places the pin.
 export type LinkPlace = {
   name: string | null;
   address: string | null;
   position: { lat: number; lng: number } | null;
   guess: { lat: number; lng: number } | null;
+  ftid: string | null;
 };
 
 // The Maps app shares "Name\nAddress\nhttps://maps.app.goo.gl/…"; take the first URL in the text.
@@ -85,7 +87,26 @@ export function parseGoogleMapsUrl(url: URL): LinkPlace | null {
   const at = path.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
   const center = at ? coord(at[1], at[2]) : null;
 
+  const ftid = url.searchParams.get("ftid");
+
   const position = pin ?? fromQuery ?? center;
   if (!position && !name) return null;
-  return { name: name ? name.slice(0, 100) : null, address: address ? address.slice(0, 200) : null, position, guess: null };
+  return {
+    name: name ? name.slice(0, 100) : null,
+    address: address ? address.slice(0, 200) : null,
+    position,
+    guess: null,
+    ftid: ftid && FTID_RE.test(ftid) ? ftid.toLowerCase() : null,
+  };
+}
+
+// Google's place id in Maps links: "0xd19338594951ef9:0x1d963dd88e75cc5f".
+const FTID_RE = /^0x[0-9a-f]{1,16}:0x[0-9a-f]{1,16}$/i;
+
+// Google Maps search (www.google.com/search?tbm=map&q=…) answers with JSON where every place reads
+// [null,null,lat,lng],"<ftid>". The place with the link's ftid wins; without an ftid, the first place.
+export function findInMapsSearch(body: string, ftid: string | null): { lat: number; lng: number } | null {
+  const places = [...body.matchAll(/\[null,null,(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\],"(0x[0-9a-f]+:0x[0-9a-f]+)"/gi)];
+  const match = ftid ? places.find((place) => place[3].toLowerCase() === ftid) : places[0];
+  return match ? coord(match[1], match[2]) : null;
 }
