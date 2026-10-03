@@ -442,7 +442,7 @@ function FeedTab({ items, seen, hasFriends, onFindFriends, myLists, onSaved }: F
                   <li
                     key={item.id}
                     style={{ animationDelay: `${delay}ms` }}
-                    className={`relative rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 focus-within:z-10 motion-safe:animate-[fork-pop_260ms_ease-out_both] ${
+                    className={`relative rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 motion-safe:animate-[fork-pop_260ms_ease-out_both] ${
                       position === 0 ? "rounded-tl-md" : ""
                     } ${isNew ? "ring-2 ring-accent/50" : "ring-black/5"}`}
                   >
