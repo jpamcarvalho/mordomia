@@ -22,6 +22,12 @@ function authError(error: { code?: string }): string {
   return (error.code && AUTH_ERRORS[error.code]) || "Algo correu mal. Tenta outra vez.";
 }
 
+// Where to go after logging in: only a path on this site ("/x", not "//host" or "/\host"), else home.
+function safeNext(value: FormDataEntryValue | null): string {
+  const next = typeof value === "string" ? value : "";
+  return next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : "/";
+}
+
 export async function login(_: AuthState, formData: FormData): Promise<AuthState> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
@@ -29,7 +35,7 @@ export async function login(_: AuthState, formData: FormData): Promise<AuthState
     password: String(formData.get("password")),
   });
   if (error) return { error: authError(error) };
-  redirect("/");
+  redirect(safeNext(formData.get("next")));
 }
 
 export async function signup(_: AuthState, formData: FormData): Promise<AuthState> {

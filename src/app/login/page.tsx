@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { use, useActionState, useState } from "react";
 import { login, signup, type AuthState } from "./actions";
 
 type Mode = "login" | "signup";
@@ -10,7 +10,9 @@ const TABS: { mode: Mode; label: string }[] = [
   { mode: "signup", label: "Registar" },
 ];
 
-export default function LoginPage() {
+export default function LoginPage({ searchParams }: PageProps<"/login">) {
+  // The page that sent a signed-out visitor here; login returns to it (checked again by the action).
+  const { next } = use(searchParams);
   const [mode, setMode] = useState<Mode>("login");
   const [showPassword, setShowPassword] = useState(false);
   const [state, action, pending] = useActionState<AuthState, FormData>(
@@ -61,6 +63,7 @@ export default function LoginPage() {
         action={action}
         className="flex flex-col gap-3"
       >
+        {mode === "login" && typeof next === "string" && <input type="hidden" name="next" value={next} />}
         {mode === "signup" && (
           <div className="flex flex-col gap-1">
             <label htmlFor="username" className="text-sm font-medium">

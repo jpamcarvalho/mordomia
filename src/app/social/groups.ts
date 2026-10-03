@@ -257,6 +257,8 @@ export async function loadGroup(groupId: string): Promise<Group | null> {
 
 export type GroupEvent = {
   id: string;
+  // Short code for shared links (/e/<code>).
+  shareCode: string;
   groupId: string;
   title: string;
   createdAt: string;
@@ -326,6 +328,7 @@ type EventRow = {
   price_opened_at: string | null;
   price_closed_at: string | null;
   closed_at: string | null;
+  share_code: string;
   location: RestaurantPlaceRow | null;
 };
 type SuggestionRow = { id: string; event_id: string; suggested_by: string | null; restaurants: RestaurantPlaceRow | null };
@@ -343,7 +346,7 @@ export async function loadGroupEvents(groupId: string): Promise<GroupEvent[]> {
   const [{ data: eventRows }, { data: group }] = await Promise.all([
     supabase
       .from("group_events")
-      .select(`id, title, created_at, created_by, mordomo_id, event_date, price_opened_at, price_closed_at, closed_at, location:restaurants(${RESTAURANT_PLACE_COLUMNS})`)
+      .select(`id, title, created_at, created_by, mordomo_id, event_date, price_opened_at, price_closed_at, closed_at, share_code, location:restaurants(${RESTAURANT_PLACE_COLUMNS})`)
       .eq("group_id", groupId)
       .order("created_at", { ascending: false }),
     supabase.from("groups").select("owner_id").eq("id", groupId).maybeSingle(),
@@ -461,6 +464,7 @@ export async function loadGroupEvents(groupId: string): Promise<GroupEvent[]> {
       canSuggest: !!event.event_date && !event.closed_at && !event.location && state(me) === "going",
       price: priceGame(event, me, state(me) === "going", bills.get(event.id), guesses, guessers, people),
       closedAt: event.closed_at,
+      shareCode: event.share_code,
     };
   });
 }
@@ -544,6 +548,15 @@ export async function deleteGroupEvent(eventId: string): Promise<Done> {
 export async function loadGroupEvent(groupId: string, eventId: string): Promise<GroupEvent | null> {
   if (!isId(eventId)) return null;
   return (await loadGroupEvents(groupId)).find((event) => event.id === eventId) ?? null;
+}
+
+// Where a shared link (/e/<code>) points: the event's page, or null when there is no such event or I am not a
+// member of its group (RLS).
+export async function findSharedEvent(code: string): Promise<{ groupId: string; eventId: string } | null> {
+  const session = await signedIn();
+  if (!session || !/^[A-Za-z0-9]{6}$/.test(code)) return null;
+  const { data } = await session.supabase.from("group_events").select("id, group_id").eq("share_code", code).maybeSingle();
+  return data ? { groupId: data.group_id, eventId: data.id } : null;
 }
 
 // The event's creator (or the group owner) names a member as mordomo; the database checks both.

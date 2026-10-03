@@ -20,6 +20,7 @@ import { LocationSection } from "./event-location";
 import { PriceSection } from "./event-price";
 import { CloseEvent, ThankYou } from "./event-close";
 import { PastEvent } from "./event-past";
+import { ShareEvent } from "./event-share";
 import { GroupPhoto, PersonAvatar, groupHref, primary } from "./groups-tab";
 
 type Props = { group: Group; initialEvent: GroupEvent };
@@ -90,6 +91,7 @@ export function EventPage({ group, initialEvent }: Props) {
               Ao vivo
             </span>
           )}
+          <ShareEvent event={event} className={live ? "" : "ml-auto"} />
         </div>
 
         {event.closedAt ? (

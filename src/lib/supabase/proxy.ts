@@ -43,6 +43,11 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
+    // Back to the page that was asked for after logging in (e.g. an event link shared on WhatsApp).
+    if (pathname !== "/" && !pathname.startsWith("/api")) {
+      url.searchParams.set("next", pathname + request.nextUrl.search);
+    }
     return NextResponse.redirect(url);
   }
 

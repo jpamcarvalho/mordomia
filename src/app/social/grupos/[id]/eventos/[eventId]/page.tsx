@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EventPage } from "@/components/social/event-page";
+import { PrivateEvent } from "@/components/social/private-event";
 import { dataKey } from "@/lib/data-key";
 import { loadGroup, loadGroupEvent } from "../../../../groups";
 
@@ -11,7 +11,8 @@ export const metadata: Metadata = { title: "Evento · Mordomia Social" };
 export default async function EventRoute({ params }: PageProps<"/social/grupos/[id]/eventos/[eventId]">) {
   const { id, eventId } = await params;
   const [group, event] = await Promise.all([loadGroup(id), loadGroupEvent(id, eventId)]);
-  if (!group || !event) notFound();
+  // Not a member (or no such event): the same private notice either way, so a shared link reveals nothing.
+  if (!group || !event) return <PrivateEvent />;
 
   return (
     <PullToRefresh>
