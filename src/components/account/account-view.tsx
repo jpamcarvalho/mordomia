@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
-import { logout } from "@/app/login/actions";
 import { ENTER, delay } from "@/components/enter";
 import { ProfileLists } from "@/components/profile-lists";
 import { LevelsSheet } from "./levels-sheet";
@@ -43,7 +42,7 @@ function useCountUp(value: number, decimals = 0) {
 }
 
 // My account: level and friends, my top restaurants with the average score, then my lists. The photo in the corner
-// opens "Editar perfil" (photo, name, bio).
+// opens "Editar perfil" (photo, name, bio, and "Terminar sessão").
 export function AccountView({ username, avatarUrl, stats, friendCount, list }: Props) {
   const router = useRouter();
   const level = levelFor(stats.went);
@@ -105,12 +104,6 @@ export function AccountView({ username, avatarUrl, stats, friendCount, list }: P
           style={delay(160)}
         />
 
-        <form action={logout} style={delay(240)} className={`flex justify-center ${ENTER}`}>
-          <button className="flex h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-red-100 bg-white font-semibold text-red-600 shadow-sm transition hover:bg-red-50 active:scale-95">
-            <span aria-hidden="true">👋</span>
-            Terminar sessão
-          </button>
-        </form>
       </div>
     </main>
   );

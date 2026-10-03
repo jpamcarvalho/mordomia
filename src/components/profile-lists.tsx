@@ -10,6 +10,9 @@ import { kindEmoji, kindsLabel, placeKinds } from "@/lib/map/restaurants";
 
 type Tab = { label: string; empty: string };
 
+// Places shown at first, and how many more each "Ver mais" adds.
+const PAGE = 10;
+
 // Someone's two lists (a friend's profile or my account): tabs for "been there" / "want to go"; each restaurant
 // opens on the map.
 export function ProfileLists({
@@ -23,8 +26,10 @@ export function ProfileLists({
   tabs: Record<ListStatus, Tab>;
   style: CSSProperties;
 }) {
-  const [tab, onTab] = useState<ListStatus>("saved");
-  const shown = items.filter((item) => item.status === tab);
+  const [tab, setTab] = useState<ListStatus>("saved");
+  const [limit, setLimit] = useState(PAGE);
+  const inTab = items.filter((item) => item.status === tab);
+  const shown = inTab.slice(0, limit);
   const statuses: ListStatus[] = ["saved", "want"];
 
   return (
@@ -39,7 +44,10 @@ export function ProfileLists({
               role="tab"
               type="button"
               aria-selected={active}
-              onClick={() => onTab(status)}
+              onClick={() => {
+                setTab(status);
+                setLimit(PAGE);
+              }}
               className={`flex h-10 items-center justify-center gap-2 rounded-full text-sm font-semibold transition ${
                 active ? "bg-accent text-white shadow" : "text-neutral-600"
               }`}
@@ -53,7 +61,7 @@ export function ProfileLists({
         })}
       </div>
 
-      {shown.length === 0 ? (
+      {inTab.length === 0 ? (
         <p className="mt-4 rounded-2xl bg-neutral-50 px-4 py-3 text-sm text-neutral-500">{tabs[tab].empty}</p>
       ) : (
         <ul className="mt-3 flex flex-col gap-2">
@@ -86,6 +94,15 @@ export function ProfileLists({
             </li>
           ))}
         </ul>
+      )}
+      {inTab.length > limit && (
+        <button
+          type="button"
+          onClick={() => setLimit((current) => current + PAGE)}
+          className="mt-3 h-10 w-full rounded-full bg-neutral-100 text-sm font-semibold text-neutral-700 transition hover:bg-orange-50 active:scale-[0.98]"
+        >
+          Ver mais ({inTab.length - limit})
+        </button>
       )}
     </section>
   );

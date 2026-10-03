@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { saveBio, saveDisplayName, setAvatar } from "@/app/account/actions";
+import { logout } from "@/app/login/actions";
 import { Spinner } from "@/components/spinner";
 import { BIO_MAX, DISPLAY_NAME_MAX, memberSinceLabel } from "@/lib/profile/account";
 import { avatarInitial } from "@/lib/profile/avatar";
@@ -24,7 +25,8 @@ const BIO_EMOJIS = ["🍕", "🍣", "🍷", "☕", "🥐", "🌶️", "🍔", "�
 const field =
   "w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-3.5 py-3 text-base outline-none transition focus:border-accent focus:bg-white";
 
-// "Editar perfil": the photo (saved as soon as it is picked), the name and "Sobre mim" (saved together).
+// "Editar perfil": the photo (saved as soon as it is picked), the name and "Sobre mim" (saved together), and
+// "Terminar sessão".
 // The @username and the join date are shown but never change.
 export function EditProfileView({ userId, username, displayName, bio, avatarUrl, memberSince }: Props) {
   const router = useRouter();
@@ -151,6 +153,14 @@ export function EditProfileView({ userId, username, displayName, bio, avatarUrl,
           className="flex h-12 items-center justify-center gap-2 rounded-full bg-accent font-bold text-white shadow-lg shadow-accent/30 transition active:scale-[0.98] disabled:opacity-50 disabled:shadow-none"
         >
           {saving ? "A guardar…" : "Guardar"}
+        </button>
+      </form>
+
+      {/* Its own form, outside the profile form above. */}
+      <form action={logout} className="mx-auto mt-8 max-w-md px-5">
+        <button className="flex h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-red-100 bg-white font-semibold text-red-600 shadow-sm transition hover:bg-red-50 active:scale-95">
+          <span aria-hidden="true">👋</span>
+          Terminar sessão
         </button>
       </form>
     </main>
