@@ -7,7 +7,10 @@
 > 2026-10-02: profiles and friends page, app-wide bottom bar, loading skeletons, animated splash, levels to 300,
 > saving from the Feed, **Preço certo**, closing events, past events and the demo-video scripts; see §11.
 > Later on 2026-10-03: **sharing an event** (short `/e/<code>` links, login returns to the asked page),
-> **001 security hardening** built (all 000 gaps closed, §6–7), and the redesigned login, Feed and people search.)
+> **001 security hardening** built (all 000 gaps closed, §6–7), and the redesigned login, Feed and people search.
+> Also 2026-10-03 (saving mode, no spec): Google Maps links placed without a pin, social button landing tab, tab-title
+> headers on /social, editing rating / notes inside "A minha lista", closed events without "Ao vivo" / sharing, the
+> event **start time**, and the login / sign-up flow fixed (per-tab forms, taken username / email messages).)
 
 ## 1. Product in one paragraph
 A friends-only social app. Each user keeps restaurants on two lists — **"Minha lista"** (`saved`: places they have
@@ -55,7 +58,8 @@ src/
     (home)/                   # route group: `/` only, so its loading.tsx never applies to other routes
       page.tsx                # loads username + avatar URL, the user's lists, user-added places, social pulse → <HomeMap>
       loading.tsx             # <Splash> while `/` renders
-      actions.ts              # addToList, removeFromList, createRestaurant, readGoogleLink, createRestaurantFromLink
+      actions.ts              # addToList (also edits rating / notes), removeFromList, createRestaurant,
+                              #   readGoogleLink, createRestaurantFromLink
     account/
       page.tsx                # /account: profile, signed avatar URL, list stats → <AccountView>
       loading.tsx             # <PageSkeleton variant="profile">
@@ -73,9 +77,11 @@ src/
       grupos/[id]/detalhes/page.tsx           # group details (rankings) → <GroupDetails>
       **/loading.tsx          # a <PageSkeleton> per route (feed / list / profile variants)
     login/page.tsx            # sign in / sign up: splash gradient + PinMark, card form, pill tabs "Entrar" /
-                              #   "Registar" (useActionState); passes ?next= on as a hidden field
-    login/actions.ts          # login (→ safe ?next= path or /), signup (username + password ≥ 8 checked on the
-                              #   server), logout; maps Supabase auth error codes to Portuguese
+                              #   "Registar"; one <AuthForm key={mode}> per tab (own useActionState); passes ?next=
+                              #   on as a hidden field
+    login/actions.ts          # login (→ safe ?next= path or /), signup (username format + availability, password
+                              #   ≥ 8 checked on the server; existing email → emailTaken), logout; maps Supabase auth
+                              #   error codes to Portuguese
     e/[code]/page.tsx         # shared event link: member → redirect to the event; anyone else → <PrivateEvent>
     auth/confirm/route.ts     # email confirmation link target (verifyOtp / code exchange)
     api/search/route.ts       # GET: restaurant search (user-added + Photon), optional country
@@ -94,11 +100,16 @@ src/
       home-map.tsx            #   orchestrates the home screen state (phase, selection, lists, dialogs, toasts)
       map-view.tsx            #   MapLibre map: Positron style, food POIs + user-added layer, click → place, pin mode
       avatar-link.tsx         #   floating avatar (photo or initial) → /account
-      friends-button.tsx      #   floating social button → /social, badge = requests + invites + unseen feed
+      friends-button.tsx      #   floating social button → /social (landing tab: socialHref, §11), badge = requests +
+                              #   invites + unseen feed
       list-chips.tsx          #   top-left legend chips: show/hide "Já fui" / "Quero ir" dots on the map
       search-bar.tsx          #   bottom search bar (left of the fork menu) → opens the search
       list-fab.tsx            #   the "fork menu" (round knife-and-fork button): Pesquisar, Novo restaurante, A minha lista
-      list-panel.tsx          #   full-screen "A minha lista": tabs, search, Tipo/Nota filter dropdowns
+      list-panel.tsx          #   full-screen "A minha lista": tabs, search, Tipo/Nota filter dropdowns; tapping a
+                              #   place opens <EntrySheet>
+      entry-sheet.tsx         #   centered modal over the list: edit rating + notes ("Minha lista"), notes only or
+                              #   "Já fui — dar nota" ("Quero ir!"), "Ver no mapa"
+      entry-fields.tsx        #   RatingField (0–10 picker) + NotesField, shared by the place popup and EntrySheet
       place-dialog.tsx        #   popup for a tapped place: add to a list, rating (0–10) + notes form
       search-modal.tsx        #   restaurant search with country picker; "Não o encontras?" → new restaurant or
                               #   paste a Google Maps link; also reused (portaled) by event location pickers
@@ -109,7 +120,8 @@ src/
                               #   friends count (→ /social/amigos), sign out
     account/levels-sheet.tsx  # every level as a path (reached / current with progress / locked) + "mystery" levels
     social/
-      social-view.tsx         #   /social: tabs Procurar / Grupos / Feed (the bar itself is AppNav)
+      social-view.tsx         #   /social: tabs Procurar / Grupos / Feed under a small sticky tab-title header (the
+                              #   bar itself is AppNav)
       groups-tab.tsx          #   group list + invites, GroupSheet (members, invite, edit, leave/delete) and shared
                               #   pieces: Sheet (portaled), GroupPhoto, PersonAvatar, CrownedAvatar, ConnoisseurPill
       feed-save.tsx           #   corner ＋ on a friend's Feed item: save it to Quero ir / Já fui (or ✓ when listed);
@@ -128,7 +140,7 @@ src/
       event-past.tsx          #   past-event summary (mordomo, where, Preço certo winner, who went); priceWinner()
       date-poll.tsx           #   calendar sheet, poll card (vote, lock, change), close-poll sheet
       event-attendance.tsx    #   "Habemus data!" banner, Vou / Não vou, rejoin requests
-      event-location.tsx      #   restaurant search for events, location card, suggestions
+      event-location.tsx      #   restaurant search for events, location card (with the start time row), suggestions
       group-details.tsx       #   stats and the three rankings
   lib/                        # pure logic, each with colocated *.test.ts
     validation/username.ts, validation/password.ts (MIN_PASSWORD_LENGTH = 8, isValidPassword)
@@ -142,12 +154,12 @@ src/
                               #   search.ts (search my list), filter.ts (type/rating filters), new-restaurant.ts,
                               #   restaurant-id.ts (place → restaurants row, server), rating-color.ts (grade colours)
     search/                   # photon.ts (Photon → SearchResult, ranking), countries.ts (country picker list),
-                              #   google-link.ts (find / parse Google Maps links)
+                              #   google-link.ts (find / parse Google Maps links, read Maps search results)
     profile/                  # avatar.ts (initial), account.ts (bio/name parsing, stats, levels + allLevels),
                               #   load.ts (avatar URL),
                               #   square-photo.ts (crop to a square JPEG in the browser; avatars and group photos)
     social/                   # people.ts (Person, signedIn, signed URLs, friendIds), seen.ts (feed "seen" per device),
-                              #   groups.ts (limits, bucket), dates.ts (pt-PT day formatting, month grid),
+                              #   groups.ts (limits, bucket), dates.ts (pt-PT day / day + time formatting, month grid),
                               #   use-live-event.ts (Supabase Realtime hook), group-stats.ts (rankings),
                               #   connoisseur.ts (who holds the Connoisseur badge), price-guess.ts (Preço certo:
                               #   rankGuesses winner rule, euros parsing/formatting)
@@ -243,7 +255,8 @@ Migrations (in order): `20260929000000_init.sql`, `20260930000000_osm_restaurant
 `20261001000200_group_events.sql`, `20261001000300_event_mordomo.sql`, `20261001000400_event_date_poll.sql`,
 `20261001000500_event_attendance.sql`, `20261001000600_event_realtime.sql`, `20261001000700_event_location.sql`,
 `20261002000000_friend_count.sql`, `20261002000100_price_guess.sql`, `20261003000000_event_close.sql`,
-`20261003000100_event_share_code.sql`, `20261003000200_entry_photos_path_binding.sql`.
+`20261003000100_event_share_code.sql`, `20261003000200_entry_photos_path_binding.sql`,
+`20261003000300_event_start_time.sql`, `20261003000400_username_available.sql`.
 
 | Table | Key columns | Notes |
 |---|---|---|
@@ -254,7 +267,7 @@ Migrations (in order): `20260929000000_init.sql`, `20260930000000_osm_restaurant
 | `friendships` | `requester_id`, `addressee_id`, `status` (`pending`/`accepted`) | one row per pair (unique on least/greatest). Trigger `friendships_guard_update`: ids and `created_at` frozen, status only `pending → accepted` |
 | `groups` | `id`, `owner_id` (default `auth.uid()`), `name` (1–40), `description` (≤ 300), `photo_path` (`{owner_id}/…`) | trigger `groups_add_owner` inserts the owner as a `member` |
 | `group_members` | (`group_id`, `user_id`), `status` (`invited`/`member`), `invited_by` | an invite is a row with `invited`; accepting sets `member`. Guards: only `invited → member` by the invitee; the owner can't leave |
-| `group_events` | `id`, `group_id`, `title` (1–60), `created_by`, `mordomo_id`, `event_date` (date, no time), `location_restaurant_id`, `price_opened_at`, `price_closed_at`, `price_guessed_at`, `closed_at`, `share_code` (6 chars, unique, default `new_event_share_code()`) | no update grant: mordomo, date, location, Preço certo state and closing change only through RPCs. `price_guessed_at` is touched by every guess so live pages refresh (others' guesses are hidden from them). Closed (`closed_at` set) = frozen, see below |
+| `group_events` | `id`, `group_id`, `title` (1–60), `created_by`, `mordomo_id`, `event_date` (date), `start_time` (time, optional), `location_restaurant_id`, `price_opened_at`, `price_closed_at`, `price_guessed_at`, `closed_at`, `share_code` (6 chars, unique, default `new_event_share_code()`) | no update grant: mordomo, date, location, start time, Preço certo state and closing change only through RPCs; new rows must have `start_time` null. `price_guessed_at` is touched by every guess so live pages refresh (others' guesses are hidden from them). Closed (`closed_at` set) = frozen, see below |
 | `group_event_date_options` | `id`, `event_id`, `day` | the poll's days (1–31, from yesterday on); unique (`event_id`, `day`); created by RPC |
 | `group_event_date_votes` | (`option_id`, `user_id`) | members vote / unvote directly while the poll is open (`date_option_open`) |
 | `group_event_attendance` | (`event_id`, `user_id`), `going`, `rejoin_requested_at` | explicit answers only (voters of the chosen day and the mordomo are going implicitly). Written only by RPCs |
@@ -269,7 +282,7 @@ cents); ties → earliest `created_at`; every guess above → no winner.
 
 **Closed events:** `close_group_event` sets `closed_at` (mordomo, dated event; a Preço certo that was opened must be
 revealed first). Triggers then freeze the event: `group_events_frozen` blocks changes to its row (a deleted person or
-restaurant may still null a link), and `group_event_child_frozen` blocks new attendance / suggestions / guesses /
+restaurant may still null a link; the start time is frozen too), and `group_event_child_frozen` blocks new attendance / suggestions / guesses /
 bills / date options and changed answers or guesses. Deleting the event still works.
 
 Food classes (`src/lib/map/restaurants.ts`, same as the OpenMapTiles `poi` classes): `restaurant`, `fast_food`,
@@ -286,6 +299,8 @@ Helpers (all `security definer`, `search_path = ''`):
 - `are_friends(a, b)` → accepted friendship; answers only when the caller is `a` or `b`; not executable by anon.
 - `new_event_share_code()`: a random 6-character code (no look-alike characters) not used by any event; `security
   definer` so it sees every event's code, not only those RLS shows the creator. The code is not a secret.
+- `username_available(u)`: yes / no for one username (lower-cased); callable by **anon** because sign-up runs
+  signed out; reveals nothing else. Used only by `signup`, never by login.
 - `in_group(gid, invited_ok)`, `owns_group(gid)`, `in_event_group(eid)`, `date_option_open(oid)`,
   `is_going_to_event(eid)` — used by policies.
 - `friend_count(uid)` (any signed-in user; the number only) and `friends_of(uid)` (rows only for the person and their
@@ -295,6 +310,7 @@ Helpers (all `security definer`, `search_path = ''`):
   `roll_event_mordomo(eid)` (event creator only, random member), `create_event_date_poll(eid, days[])` and
   `close_event_date_poll(eid, day)` (mordomo), `answer_group_event(eid, going)`, `request_group_event_rejoin(eid)`,
   `answer_group_event_rejoin(eid, uid, accept)` (mordomo), `set_event_location(eid, rid | null)` (mordomo, dated event),
+  `set_event_start_time(eid, time | null)` (mordomo, dated event with a restaurant, not closed; null clears it),
   `set_event_price_game(eid, open)` (mordomo, dated, not revealed: open / reopen / close the guesses),
   `guess_event_price(eid, guess)` (going, guesses open), `reveal_event_bill(eid, total, people)` (mordomo, guesses
   closed, once), `close_group_event(eid)` (mordomo, dated, Preço certo revealed or never opened).
@@ -345,6 +361,9 @@ page whether or not the event exists. The shared message itself (title, date, li
 **Invariant (Preço certo):** before the reveal nobody sees another person's guess (RLS: own row only); members only
 see *who* guessed (`event_price_guessers`). The bill total stays in the mordomo's browser until they reveal it.
 
+**Invariant (usernames):** signed out, the only thing anyone can learn is whether one username is taken
+(`username_available`, needed by sign-up; usernames are visible to every signed-in user anyway).
+
 **Invariant (profiles):** anyone signed in sees a person's public card (photo, name, bio, friends **count**); their
 lists and their friends list only to their friends.
 
@@ -354,7 +373,7 @@ the GPS fix and the pin are sent to `createRestaurant`, which checks the pin is 
 
 ## 7. Auth flow
 Sign up (email, password, username) → `signup` server action validates the username (`src/lib/validation/username.ts`)
-→ `signUp` with `data.username` and `emailRedirectTo: <origin>/auth/confirm` → trigger creates the profile →
+and checks it is free (`username_available` → "Esse nome de utilizador já está em uso. Escolhe outro.") → `signUp` with `data.username` and `emailRedirectTo: <origin>/auth/confirm` → trigger creates the profile →
 Supabase sends a confirmation email → link hits `/auth/confirm` → session cookie set → `/`.
 Sign out: the floating avatar on the map opens **`/account`**, whose "Terminar sessão" button submits the `logout`
 server action (there is no avatar dropdown any more). `/login` has "Entrar" / "Registar" tabs. `src/proxy.ts` runs on
@@ -370,6 +389,15 @@ paths are exact (`isPublicPath`: `/login`, `/auth`, `/auth/…`), so `/login-hel
 - **Proxy matcher** skips only `_next/static`, `_next/image`, exactly `/favicon.ico` and `/manifest.webmanifest`, and
   image / `.mjs` files (MapLibre worker). A new icon route (`app/icon.*`) must be added there as an exact entry.
 - After a failed attempt the email and username stay (controlled inputs; React resets a form after its action).
+- **One form per tab** (`<AuthForm key={mode}>`, each with its own `useActionState`): Entrar only ever runs `login`,
+  Registar only `signup`, and switching tabs clears the message but keeps the email / username. (One shared
+  `useActionState` whose action switched with the tab kept running `signup` after visiting Registar — fixed
+  2026-10-03.)
+- **Email already registered:** shown as "Já existe uma conta com este email." with **"Entrar com este email"** (switches
+  to Entrar, email filled). Locally Supabase returns `user_already_exists`; in production (confirmations on) it
+  returns a fake success whose user has no `identities`, which `signup` also treats as taken (not verified locally).
+- **Sign-up with an immediate session** (local, confirmations off) goes straight to `/`; otherwise "Vê o teu email
+  para confirmares a conta."
 - Local Supabase has email confirmations disabled; **production has them enabled** (Site URL and redirect URLs must
   point at the Vercel domain, §12).
 
@@ -390,8 +418,11 @@ paths are exact (`isPublicPath`: `/login`, `/auth`, `/auth/…`), so `/login-hel
   (no country stored) are kept by a rough bounding box, so neighbouring boxes can overlap. The picker's choice is
   remembered per device in `localStorage` (`mordomia.searchCountry`).
 - **Google Maps links:** "Não o encontras?" accepts a pasted Google Maps share (`readGoogleLink`). The server follows
-  short-link redirects **only on Google Maps hosts**, reads the name and position (`lib/search/google-link.ts`); when
-  the link has no position, Photon geocodes the address for a starting pin and the user places it.
+  short-link redirects **only on Google Maps hosts**, reads the name and position (`lib/search/google-link.ts`). Links with only a name, address and
+  place id (`?q=Name, address&ftid=0x…:0x…`) are looked up on **Google Maps search**
+  (`www.google.com/search?tbm=map&q=…`, 5 s timeout, no redirects): `findInMapsSearch` reads the place whose ftid
+  matches (`[null,null,lat,lng],"<ftid>"`), so the restaurant is placed with no pin step. This is Google's internal
+  response format, not a public API: if it fails, Photon geocodes the address for a starting pin and the user places it.
   `createRestaurantFromLink` re-reads the link, so name/position come from Google, not the browser. `share.google`
   links (no position) get a message asking to share from Google Maps.
 - **Supabase Realtime:** event pages subscribe to `postgres_changes` (see §4 "Live updates").
@@ -485,7 +516,11 @@ READMEs — this section is their only documentation):
 - **Fork menu** (`ListFab`, bottom-right knife-and-fork button): Pesquisar, Novo restaurante, A minha lista (count
   badge). The former "Adicionar" option was removed.
 - **"A minha lista"** (`ListPanel`, full screen): tabs "Minha lista" / "Quero ir!" with counts, search across both
-  lists (accent- and case-insensitive), remove, "Ver no mapa". **Filters:** one row with two dropdown buttons —
+  lists (accent- and case-insensitive), remove. **Tapping a place opens a centered edit modal** (`EntrySheet`) instead of
+  the map: "Minha lista" → rating (tap again to clear) + notes, **Guardar 👌**; "Quero ir!" → notes only (saved with
+  `addToList(…, "want", { notes })`, which otherwise keeps notes) plus **⭐ Já fui — dar nota**, which moves it to
+  "Minha lista" with a rating; "📍 Ver no mapa" at the bottom; Escape / ✕ / outside close only the modal. The bottom
+  bar hides while it is open. Cards say "Editar" / "Notas". **Filters:** one row with two dropdown buttons —
   **🍽️ Tipo** (multi-select, any-of, counts place with several types under each) and **⭐ Nota** (single choice:
   one "at least N" option per rating the user actually gave, best first, plus "Sem nota"; results sorted best first).
   Options come only from the restaurants on the current tab/search; a chosen value that is not present there is
@@ -528,7 +563,11 @@ READMEs — this section is their only documentation):
 - **Mordomia Social (`/social`):** opened from the floating social button on the map (badge = friend requests +
   group invites + feed items not seen on this device; the icon rings while there is any). Bottom bar:
   **Mapa** · **Procurar** · **Grupos** · **Feed** · **Perfil**; the tab is in `?tab=`.
-  - **Header** (all tabs): warm orange gradient, frosted while scrolling, "Mordomia Social" and a friends-count pill.
+  - **Landing tab** (`socialHref` in `friends-button.tsx`, data from `loadSocialPulse`): a friend request →
+    Procurar; a group invite → Grupos; no friends → Procurar; member of a group → Grupos; otherwise Feed.
+  - **Header** (all tabs): a small sticky title with the tab's name (Procurar / Grupos / Feed, as in the bottom bar),
+    a short accent line under it, frosted while scrolling. (The "Mordomia Social" banner with back arrow and friends
+    count was removed on 2026-10-03; Mapa in the bottom bar goes back.)
   - **Procurar:** search people by name or @username (from 2 characters, 300 ms debounce), send / accept / cancel
     requests, list and remove friends. The matched part of a name / @username is highlighted (case- and
     accent-insensitive, `Highlight`), skeleton rows while searching, a 🔎 empty state with a hint. Not built (options
@@ -567,6 +606,11 @@ READMEs — this section is their only documentation):
      mordomo, who accepts or declines.
   4. **Location:** a restaurant from the map search. Without one, people going suggest restaurants; the mordomo picks
      a suggestion or any restaurant, and can change or clear it. "Ver no mapa" opens it on the home map.
+     **Start time** (optional): once a restaurant is chosen, the location card has a 🕗 **Hora** row ("às 20:30" or
+     "Hora por definir"); the mordomo sets it with the phone's time picker ("Definir hora" / "Mudar", starts at 20:00),
+     or clears it (✕), until the event is closed. Shown with the date in the Habemus banner, the group's event cards,
+     the shared text and the past-event page (`formatDayTime`: "… às 20:30"). Removing the restaurant keeps the
+     time, hidden until a restaurant is chosen again.
   5. **💶 Preço certo** (dated events; data model in §5): an always-visible **📜 Regras** box for everyone.
      - Only the mordomo sees it before it starts: **🎯 Abrir o Preço certo**.
      - **Apostas abertas** (green badge): everyone going guesses the price per person in secret ("O teu palpite 🤫",
@@ -581,9 +625,10 @@ READMEs — this section is their only documentation):
      sheet, then a **thank-you modal** for the mordomo ("Obrigado, …! Organizaste um evento incrível…", confetti,
      "De nada 😎"). The event is frozen (§5) and its page becomes the **past-event summary**: date, 🎩 mordomo,
      📍 where, 👑 Preço certo winner with the price, 👥 who went.
-- **Sharing an event** (share icon at the top right of every event page, open or past): the phone's share sheet
+- **Sharing an event** (share icon at the top right of open event pages; a **closed** event shows neither the share
+  icon nor "Ao vivo", though links shared earlier still open for members): the phone's share sheet
   (`navigator.share`; WhatsApp, Mensagens…) or, without one, WhatsApp Web (`wa.me`), with "🍽️ <title> — <date>" and
-  the short link `<NEXT_PUBLIC_SITE_URL>/e/<share_code>`. Opening it: signed out → `/login?next=/e/<code>` → back;
+  the short link `<NEXT_PUBLIC_SITE_URL>/e/<share_code>` (with the start time once set). Opening it: signed out → `/login?next=/e/<code>` → back;
   member → the event page; anyone else → `<PrivateEvent>` (§6). WhatsApp's link preview shows the login page.
 - **Group details** (`/social/grupos/[id]/detalhes`, members only): number of dated events and of all events, and three
   rankings over current members — **most mordomias** (dated events they are going to, future ones included),
@@ -600,7 +645,7 @@ Live since 2026-09-30. 001 security hardening landed on 2026-10-03.
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (`GOOGLE_PLACES_API_KEY` and `NEXT_PUBLIC_SITE_URL` not set; links use the
   current site, which is production).
 - **Database:** Supabase project `mordomia` (`legpqwvizknhuwuhrrlo`, `eu-west-3` Paris, Free plan). All migrations up
-  to `20261003000200_entry_photos_path_binding` are applied (2026-10-03). **Migrations are not applied by the deploy**: apply every new migration to
+  to `20261003000400_username_available` are applied (2026-10-03). **Migrations are not applied by the deploy**: apply every new migration to
   production (Supabase MCP `apply_migration` or `supabase db push`) before or together with pushing code that needs it.
 - **Auth settings (dashboard):** email confirmation on; Site URL `https://mordomia-two.vercel.app`, redirect URL
   `https://mordomia-two.vercel.app/**`. The built-in email sender is rate-limited (a few emails per hour).
