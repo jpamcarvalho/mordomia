@@ -7,7 +7,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Everything except static assets, images and PWA files
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mjs)$).*)",
+    // Everything except Next static files, exactly /favicon.ico and /manifest.webmanifest, images and the MapLibre
+    // worker (.mjs). A new icon route (app/icon.*, app/apple-icon.*) must be added here as an exact entry.
+    "/((?!_next/static|_next/image|favicon\\.ico$|manifest\\.webmanifest$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mjs)$).*)",
   ],
 };

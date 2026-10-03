@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { isValidPassword, MIN_PASSWORD_LENGTH } from "@/lib/validation/password";
 import { isValidUsername, normalizeUsername } from "@/lib/validation/username";
 
 export type AuthState = { error?: string; message?: string };
@@ -43,12 +44,16 @@ export async function signup(_: AuthState, formData: FormData): Promise<AuthStat
   if (!isValidUsername(username)) {
     return { error: "O nome de utilizador tem de ter 3–24 caracteres: letras, números ou _." };
   }
+  const password = String(formData.get("password"));
+  if (!isValidPassword(password)) {
+    return { error: `A palavra-passe tem de ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.` };
+  }
 
   const supabase = await createClient();
   const origin = (await headers()).get("origin");
   const { error } = await supabase.auth.signUp({
     email: String(formData.get("email")),
-    password: String(formData.get("password")),
+    password,
     options: {
       data: { username },
       emailRedirectTo: `${origin}/auth/confirm`,

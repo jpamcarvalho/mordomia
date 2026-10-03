@@ -52,3 +52,6 @@ next-env.d.ts
 
 # MapLibre worker, copied by scripts/copy-maplibre-worker.mjs
 /public/maplibre/
+
+# claude code local settings
+/.claude/settings.local.json

@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useActionState, useState } from "react";
+import { MIN_PASSWORD_LENGTH } from "@/lib/validation/password";
 import { login, signup, type AuthState } from "./actions";
 
 type Mode = "login" | "signup";
@@ -101,7 +102,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
               name="password"
               type={showPassword ? "text" : "password"}
               autoComplete={mode === "login" ? "current-password" : "new-password"}
-              minLength={8}
+              minLength={MIN_PASSWORD_LENGTH}
               required
               className="w-full rounded-lg border py-2 pr-16 pl-3"
             />
