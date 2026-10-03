@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
@@ -47,6 +46,8 @@ type Props = {
   myLists: Record<string, ListStatus>;
 };
 
+const TITLES: Record<ReturnType<typeof parseTab>, string> = { procurar: "Procurar", grupos: "Grupos", feed: "Feed" };
+
 // "Mordomia Social" (/social): Procurar (find friends, answer requests), Grupos (my groups and invites) and Feed
 // (friends' latest additions to their lists). The tabs are in the app's bottom bar (AppNav).
 export function SocialView({ userId, initialFriends, initialGroups, feed, myLists: initialMyLists }: Props) {
@@ -84,28 +85,13 @@ export function SocialView({ userId, initialFriends, initialGroups, feed, myList
 
   return (
     <main className="flex min-h-dvh flex-col bg-neutral-50">
-      {/* Warm like the login and the splash; frosted while the list scrolls under it. */}
-      <header className="sticky top-0 z-10 border-b border-orange-100/80 bg-gradient-to-b from-orange-100/95 to-orange-50/90 px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            aria-label="Voltar ao mapa"
-            className="-ml-1 flex size-10 items-center justify-center rounded-full text-foreground hover:bg-white/60"
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="size-6">
-              <path d="M15 5l-7 7 7 7" />
-            </svg>
-          </Link>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-extrabold tracking-tight">Mordomia Social</h1>
-            <p className="mt-0.5 w-fit rounded-full bg-white/70 px-2 py-0.5 text-xs font-semibold text-orange-800 ring-1 ring-orange-200/70">
-              👥 {count === 1 ? "1 amigo" : `${count} amigos`}
-            </p>
-          </div>
-        </div>
+      {/* The tab's name (same as the bottom bar); frosted while the list scrolls under it. */}
+      <header className="sticky top-0 z-10 bg-neutral-50/85 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-2.5 backdrop-blur-md">
+        <h1 className="text-xl font-extrabold tracking-tight">{TITLES[tab]}</h1>
+        <span aria-hidden="true" className="mt-1 block h-1 w-6 rounded-full bg-accent" />
       </header>
 
-      <div className="flex-1 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+6rem)]">
+      <div className="flex-1 px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+6rem)]">
         {tab === "procurar" && <FriendsTab friends={friends} onFriends={setFriends} />}
         {tab === "feed" && (
           <FeedTab
