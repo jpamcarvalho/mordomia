@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { isValidPassword, MIN_PASSWORD_LENGTH } from "@/lib/validation/password";
 import { isValidUsername, normalizeUsername } from "@/lib/validation/username";
 
-export type AuthState = { error?: string; message?: string };
+// emailTaken: sign-up found an account with this email; the page offers to log in with it instead.
+export type AuthState = { error?: string; message?: string; emailTaken?: boolean };
 
 // Supabase Auth error codes shown to the user in Portuguese; anything else gets a generic message.
 const AUTH_ERRORS: Record<string, string> = {
@@ -50,8 +51,12 @@ export async function signup(_: AuthState, formData: FormData): Promise<AuthStat
   }
 
   const supabase = await createClient();
+  // Only sign-up checks usernames (never login).
+  const { data: available } = await supabase.rpc("username_available", { u: username });
+  if (available === false) return { error: "Esse nome de utilizador já está em uso. Escolhe outro." };
+
   const origin = (await headers()).get("origin");
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: String(formData.get("email")),
     password,
     options: {
@@ -59,7 +64,16 @@ export async function signup(_: AuthState, formData: FormData): Promise<AuthStat
       emailRedirectTo: `${origin}/auth/confirm`,
     },
   });
-  if (error) return { error: authError(error) };
+  if (error) {
+    const emailTaken = error.code === "user_already_exists" || error.code === "email_exists";
+    return { error: authError(error), emailTaken };
+  }
+  // With email confirmation on, an email that already has an account gets no error: a user with no identities.
+  if (data.user && data.user.identities?.length === 0) {
+    return { error: AUTH_ERRORS.user_already_exists, emailTaken: true };
+  }
+  // Without email confirmation (local), the account is ready and signed in.
+  if (data.session) redirect("/");
   return { message: "Vê o teu email para confirmares a conta." };
 }
 
