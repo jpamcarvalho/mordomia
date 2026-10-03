@@ -22,7 +22,7 @@ export default async function PersonRoute({ params }: PageProps<"/social/pessoa/
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, display_name, bio, avatar_path, created_at")
+    .select("id, username, display_name, bio, avatar_path")
     .eq("username", username)
     .maybeSingle();
   if (!profile) notFound();
@@ -71,7 +71,6 @@ export default async function PersonRoute({ params }: PageProps<"/social/pessoa/
           avatarUrl: photo,
         }}
         bio={profile.bio}
-        memberSince={profile.created_at}
         friendCount={typeof friends === "number" ? friends : null}
         relation={relation}
         list={list}

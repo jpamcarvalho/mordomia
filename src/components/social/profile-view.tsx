@@ -16,7 +16,6 @@ import { RemoveFriendSheet } from "./remove-friend-sheet";
 type Props = {
   person: Person;
   bio: string | null;
-  memberSince: string | null;
   friendCount: number | null;
   relation: Relation;
   // Only for friends: RLS hides the lists from everyone else.
@@ -28,13 +27,10 @@ type Props = {
 
 // Someone else's profile: photo, name, friends count and my friendship with them, their bio and (friends only)
 // their restaurants.
-export function ProfileView({ person, bio, memberSince, friendCount, relation, list, friendList, me }: Props) {
+export function ProfileView({ person, bio, friendCount, relation, list, friendList, me }: Props) {
   const router = useRouter();
   const [showFriends, setShowFriends] = useState(false);
   const firstName = person.displayName.split(" ")[0];
-  const since = memberSince
-    ? new Intl.DateTimeFormat("pt-PT", { month: "long", year: "numeric" }).format(new Date(memberSince))
-    : null;
 
   return (
     <main className="min-h-dvh bg-gradient-to-b from-orange-100 via-orange-50/40 to-white pb-[calc(env(safe-area-inset-bottom)+6rem)]">
@@ -48,36 +44,43 @@ export function ProfileView({ person, bio, memberSince, friendCount, relation, l
         </button>
 
         <section style={delay(0)} className={`flex flex-col items-center text-center ${ENTER}`}>
-          <span className="flex size-32 items-center justify-center overflow-hidden rounded-full bg-accent text-5xl font-bold text-white shadow-lg ring-4 ring-white">
-            {person.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- signed Supabase URL
-              <img src={person.avatarUrl} alt="" className="size-full object-cover" />
-            ) : (
-              avatarInitial(person.username)
-            )}
-          </span>
+          <div className="relative">
+            <span className="flex size-32 items-center justify-center overflow-hidden rounded-full bg-accent text-5xl font-bold text-white shadow-lg ring-4 ring-white">
+              {person.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- signed Supabase URL
+                <img src={person.avatarUrl} alt="" className="size-full object-cover" />
+              ) : (
+                avatarInitial(person.username)
+              )}
+            </span>
+            <FriendButton person={person} relation={relation} />
+          </div>
           <h1 className="mt-4 text-2xl font-bold">{person.displayName}</h1>
-          <p className="text-neutral-500">@{person.username}</p>
-          {list && <LevelBadge went={list.filter((item) => item.status === "saved").length} />}
-          {since && <p className="mt-1 text-xs text-neutral-400">No Mordomia desde {since}</p>}
-          {friendCount !== null &&
-            (friendList ? (
-              <button
-                type="button"
-                onClick={() => setShowFriends(true)}
-                className="mt-3 rounded-full bg-white/80 px-4 py-1.5 text-sm shadow-sm transition hover:bg-white active:scale-95"
-              >
-                <FriendCount count={friendCount} />
-                <span aria-hidden="true" className="ml-1 text-neutral-400">
-                  ›
-                </span>
-              </button>
-            ) : (
-              <p className="mt-3 rounded-full bg-white/80 px-4 py-1.5 text-sm shadow-sm">
-                <FriendCount count={friendCount} />
-              </p>
-            ))}
-          <FriendButton person={person} relation={relation} />
+          <p className="text-sm text-neutral-500">@{person.username}</p>
+          {relation === "sent" && <p className="mt-1 text-xs text-neutral-400">Pedido de amizade enviado</p>}
+          {relation === "received" && <p className="mt-1 text-xs font-medium text-accent">Quer ser teu amigo</p>}
+          {/* Level and friends side by side. */}
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            {list && <LevelBadge went={list.filter((item) => item.status === "saved").length} />}
+            {friendCount !== null &&
+              (friendList ? (
+                <button
+                  type="button"
+                  onClick={() => setShowFriends(true)}
+                  aria-label={`${friendCount} ${friendCount === 1 ? "amigo" : "amigos"}`}
+                  className="flex h-9 items-center gap-1 rounded-full bg-white/80 px-3 text-sm shadow-sm ring-1 ring-black/5 transition hover:bg-white active:scale-95"
+                >
+                  <FriendCount count={friendCount} />
+                </button>
+              ) : (
+                <p
+                  aria-label={`${friendCount} ${friendCount === 1 ? "amigo" : "amigos"}`}
+                  className="flex h-9 items-center gap-1 rounded-full bg-white/80 px-3 text-sm shadow-sm ring-1 ring-black/5"
+                >
+                  <FriendCount count={friendCount} />
+                </p>
+              ))}
+          </div>
         </section>
 
         <section style={delay(80)} className={`rounded-3xl bg-white p-5 shadow-sm ${ENTER}`}>
@@ -150,7 +153,7 @@ function LevelBadge({ went }: { went: number }) {
   return (
     <p
       title={`${went} ${went === 1 ? "restaurante" : "restaurantes"} onde já foi`}
-      className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 py-1 pr-3.5 pl-1 ring-1 ring-amber-200/80 motion-safe:animate-[badge-pop_400ms_ease-out_both] [animation-delay:200ms]"
+      className="inline-flex h-9 items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 py-1 pr-3.5 pl-1 ring-1 ring-amber-200/80 motion-safe:animate-[badge-pop_400ms_ease-out_both] [animation-delay:200ms]"
     >
       <span aria-hidden="true" className="flex size-7 items-center justify-center rounded-full bg-white text-base shadow-sm">
         {level.emoji}
@@ -163,13 +166,14 @@ function LevelBadge({ went }: { went: number }) {
 function FriendCount({ count }: { count: number }) {
   return (
     <>
-      <span aria-hidden="true">👥 </span>
-      <span className="font-bold tabular-nums">{count}</span>{" "}
-      <span className="text-neutral-500">{count === 1 ? "amigo" : "amigos"}</span>
+      <span aria-hidden="true">👥</span>
+      <span className="font-bold tabular-nums">{count}</span>
     </>
   );
 }
 
+// A small round button on the photo: "+" adds (or accepts) the friend, "−" removes them (after confirming) or
+// cancels a sent request.
 function FriendButton({ person, relation }: { person: Person; relation: Relation }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -185,36 +189,40 @@ function FriendButton({ person, relation }: { person: Person; relation: Relation
     });
   }
 
-  const primary = "h-11 rounded-full bg-accent px-6 font-semibold text-white shadow transition active:scale-95 disabled:opacity-50";
-  const secondary = "h-11 rounded-full bg-white px-5 font-semibold text-neutral-700 shadow-sm ring-1 ring-black/5 transition active:scale-95 disabled:opacity-50";
+  const add = relation === "none" || relation === "received";
+  const label =
+    relation === "none"
+      ? "Adicionar amigo"
+      : relation === "received"
+        ? "Aceitar pedido de amizade"
+        : relation === "sent"
+          ? "Cancelar pedido de amizade"
+          : "Remover amigo";
 
   return (
-    <div className="mt-4 flex flex-col items-center gap-2">
-      <div className="flex gap-2">
-        {relation === "received" ? (
-          <>
-            <button type="button" disabled={busy} onClick={() => run(() => removeFriendship(person.id))} className={secondary}>
-              Recusar
-            </button>
-            <button type="button" disabled={busy} onClick={() => run(() => acceptFriendRequest(person.id))} className={primary}>
-              Aceitar pedido
-            </button>
-          </>
-        ) : relation === "sent" ? (
-          <button type="button" disabled={busy} onClick={() => run(() => removeFriendship(person.id))} className={secondary}>
-            Pedido enviado · Cancelar
-          </button>
-        ) : relation === "friends" ? (
-          <button type="button" onClick={() => setConfirming(true)} className={secondary}>
-            Amigos ✓
-          </button>
-        ) : (
-          <button type="button" disabled={busy} onClick={() => run(() => sendFriendRequest(person.id))} className={primary}>
-            {busy ? "…" : "＋ Adicionar amigo"}
-          </button>
-        )}
-      </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+    <>
+      <button
+        type="button"
+        disabled={busy}
+        aria-label={label}
+        title={label}
+        onClick={() => {
+          if (relation === "friends") setConfirming(true);
+          else if (relation === "none") run(() => sendFriendRequest(person.id));
+          else if (relation === "received") run(() => acceptFriendRequest(person.id));
+          else run(() => removeFriendship(person.id));
+        }}
+        className={`absolute right-0 bottom-0 flex size-10 items-center justify-center rounded-full text-2xl leading-none font-bold shadow-md ring-4 ring-white transition active:scale-90 disabled:opacity-60 ${
+          add ? "bg-emerald-500 text-white" : "bg-red-50 text-red-600"
+        }`}
+      >
+        {busy ? "…" : add ? "+" : "−"}
+      </button>
+      {error && (
+        <p role="alert" className="absolute top-full left-1/2 mt-2 w-max -translate-x-1/2 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       {confirming && (
         <RemoveFriendSheet
@@ -228,6 +236,6 @@ function FriendButton({ person, relation }: { person: Person; relation: Relation
           onClose={() => setConfirming(false)}
         />
       )}
-    </div>
+    </>
   );
 }
