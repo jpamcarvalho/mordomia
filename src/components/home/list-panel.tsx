@@ -7,6 +7,8 @@ import { filterByKinds, filterByRating, kindCounts, ratingOptions, sameRatingFil
 import { kindEmoji, kindLabel, kindsLabel, placeKinds, type FoodClass } from "@/lib/map/restaurants";
 import { ratingColor } from "@/lib/list/rating-color";
 import { onNavMap, showNavOnMap } from "@/components/app-nav";
+import type { EntryDetails } from "@/lib/list/details";
+import { EntrySheet } from "./entry-sheet";
 import { CutleryIcon } from "./list-fab";
 import { MagnifierIcon } from "./search-modal";
 
@@ -19,7 +21,11 @@ const ADD_BUTTON_LABELS: Record<ListStatus, string> = {
 type Props = {
   items: ListItem[];
   removing: string | null;
+  // "Ver no mapa" (from the edit sheet).
   onPick: (item: ListItem) => void;
+  // Edit sheet: save rating / notes (or move a "Quero ir!" place to "Minha lista"); resolves true once saved.
+  onSave: (item: ListItem, status: ListStatus, details: EntryDetails) => Promise<boolean>;
+  saving: boolean;
   onRemove: (item: ListItem) => void;
   // Open on this list (from a link); otherwise on the first list that has something in it.
   initialTab?: ListStatus | null;
@@ -27,7 +33,7 @@ type Props = {
 };
 
 // Full-screen page with the user's two private lists as tabs.
-export function ListPanel({ items, removing, onPick, onRemove, initialTab, onClose }: Props) {
+export function ListPanel({ items, removing, onPick, onSave, saving, onRemove, initialTab, onClose }: Props) {
   const [tab, setTab] = useState<ListStatus>(
     () => initialTab ?? LIST_STATUSES.find((status) => items.some((item) => item.status === status)) ?? "saved",
   );
@@ -38,6 +44,9 @@ export function ListPanel({ items, removing, onPick, onRemove, initialTab, onClo
   const [rating, setRating] = useState<RatingFilter | null>(null);
   // The filter dropdown that is open.
   const [sheet, setSheet] = useState<"kind" | "rating" | null>(null);
+  // The place whose rating / notes are being edited.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = items.find((item) => item.entryId === editingId) ?? null;
   const laneRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   useEffect(() => {
@@ -53,6 +62,12 @@ export function ListPanel({ items, removing, onPick, onRemove, initialTab, onClo
       off();
     };
   }, []);
+
+  // The edit dialog covers the screen: the bar hides while it is open.
+  const sheetOpen = editing !== null;
+  useEffect(() => {
+    showNavOnMap(!sheetOpen);
+  }, [sheetOpen]);
 
   useEffect(() => {
     if (!sheet) return;
@@ -315,7 +330,7 @@ export function ListPanel({ items, removing, onPick, onRemove, initialTab, onClo
               >
                 <button
                   type="button"
-                  onClick={() => onPick(item)}
+                  onClick={() => setEditingId(item.entryId)}
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
                 >
                   <span
@@ -342,7 +357,7 @@ export function ListPanel({ items, removing, onPick, onRemove, initialTab, onClo
                         </>
                       )}
                       <span aria-hidden="true">·</span>
-                      <span className="text-accent">Ver no mapa</span>
+                      <span className="text-accent">{item.status === "saved" ? "Editar" : "Notas"}</span>
                     </span>
                     {item.notes && (
                       <span className="mt-1 line-clamp-2 text-sm whitespace-pre-line text-neutral-600">{item.notes}</span>
@@ -365,6 +380,17 @@ export function ListPanel({ items, removing, onPick, onRemove, initialTab, onClo
           </ul>
         )}
       </div>
+
+      {editing && (
+        <EntrySheet
+          key={editing.entryId}
+          item={editing}
+          saving={saving}
+          onSave={(status, details) => onSave(editing, status, details)}
+          onShowOnMap={() => onPick(editing)}
+          onClose={() => setEditingId(null)}
+        />
+      )}
     </section>
   );
 }

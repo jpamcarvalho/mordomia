@@ -20,7 +20,8 @@ const UNIQUE_VIOLATION = "23505";
 export type AddResult = { ok: true; item: ListItem } | { ok: false; error: string };
 
 // Puts the place on one of the user's private lists. Already on a list → moves it / updates it.
-// "saved" carries a rating (0–10, optional) and notes; "want" has no rating (notes are kept).
+// "saved" carries a rating (0–10, optional) and notes; "want" has no rating (notes are kept, or replaced when
+// input.notes is given: editing a "Quero ir!" place from the list).
 export async function addToList(
   place: SelectedPlace,
   status: ListStatus,
@@ -31,7 +32,10 @@ export async function addToList(
   }
   const details = parseDetails(input);
   if (!details) return { ok: false, error: "A nota tem de ser um número inteiro de 0 a 10." };
-  const fields = status === "saved" ? { status, rating: details.rating, notes: details.notes } : { status, rating: null };
+  const fields =
+    status === "saved"
+      ? { status, rating: details.rating, notes: details.notes }
+      : { status, rating: null, ...(input && "notes" in input ? { notes: details.notes } : {}) };
 
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();

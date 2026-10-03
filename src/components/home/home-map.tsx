@@ -5,7 +5,7 @@ import { addToList, createRestaurant, createRestaurantFromLink, removeFromList, 
 import { Splash } from "@/components/splash";
 import type { EntryDetails } from "@/lib/list/details";
 import { PIN_RANGE_M } from "@/lib/list/new-restaurant";
-import type { ListItem, ListStatus } from "@/lib/list/types";
+import { LIST_LABELS, type ListItem, type ListStatus } from "@/lib/list/types";
 import {
   requestLocation,
   resolveInitialView,
@@ -324,6 +324,23 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces,
     else setToast("Não foi possível remover. Tenta outra vez.");
   }
 
+  // Edit sheet in "A minha lista": save rating / notes there, without going to the map.
+  function saveEntry(item: ListItem, status: ListStatus, details: EntryDetails): Promise<boolean> {
+    return new Promise((resolve) => {
+      startAdding(async () => {
+        const result = await addToList(toPlace(item), status, details);
+        if (!result.ok) {
+          setToast(result.error);
+          resolve(false);
+          return;
+        }
+        setList((items) => items.map((other) => (other.entryId === result.item.entryId ? result.item : other)));
+        setToast(status === item.status ? "Guardado 👌" : `⭐ ${item.name} passou para ${LIST_LABELS.saved}`);
+        resolve(true);
+      });
+    });
+  }
+
   function pick(item: ListItem) {
     setListOpen(false);
     setSelected(toPlace(item));
@@ -409,6 +426,8 @@ export function HomeMap({ username, avatarUrl, initialList, initialCustomPlaces,
           items={list}
           removing={removing}
           onPick={pick}
+          onSave={saveEntry}
+          saving={adding}
           onRemove={remove}
           initialTab={listTab}
           onClose={() => {
